@@ -27,7 +27,16 @@
 #include "CRain.h"
 #include "CSnow.h"
 #include "CLava.h"
+#ifdef WIN32
 #include <direct.h>
+#else
+#include <dirent.h>
+#include <unistd.h>
+#include <limits.h>
+#include <cstring>
+#include <cstdio>
+#include <strings.h>
+#endif
 #include <algorithm>
 #endif
 
@@ -62,7 +71,7 @@ Map::Map(CString mapFilename, Game * _game, unsigned int font, bool editor, int 
 			glViewport(0, 0, res[0], res[1]);
 		dkglSetProjection(60, 1, 50, (float)res[1]*1.333f, (float)res[1]);
 
-		// Truc par default à enabeler
+		// Truc par default ï¿½ enabeler
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
 		glDisable(GL_TEXTURE_2D);
@@ -157,6 +166,9 @@ Map::Map(CString mapFilename, Game * _game, unsigned int font, bool editor, int 
 	FileIO* fptr = 0;
 	if (scene->server || isEditor)
 		fptr = &fileObj;
+	// Joining client: use on-disk map when present (skip-download path); else streamed mapBuffer.
+	else if (fileObj.isValid())
+		fptr = &fileObj;
 	else
 		fptr = &_game->mapBuffer;
 	FileIO&	file = *fptr;
@@ -182,7 +194,7 @@ Map::Map(CString mapFilename, Game * _game, unsigned int font, bool editor, int 
 
 			cells = new map_cell[size[0]*size[1]];
 
-			// On cré tout suite les contours de la map
+			// On crï¿½ tout suite les contours de la map
 			for (j=0;j<size[1];++j)
 			{
 				cells[j*size[0]+0].passable = false;
@@ -435,7 +447,7 @@ Map::Map(CString mapFilename, Game * _game, unsigned int font, bool editor, int 
 	}
 
 
-	//--- on check si on a pas un model 3D de cette map là
+	//--- on check si on a pas un model 3D de cette map lï¿½
 	CString checkFor3D = "main/modelmaps_______/";
 	checkFor3D += mapName + "/" + mapName + ".DKO";
 	FileIO * dkoFile = new FileIO(checkFor3D, "rb");
@@ -562,7 +574,7 @@ Map::Map(CString mapFilename, Game * _game, unsigned int font, bool editor, int 
 	}
 	else
 	{
-		// On cré l'espace pour la texture
+		// On crï¿½ l'espace pour la texture
 		texMap = dktCreateEmptyTexture(size[0], size[1], 3, DKT_FILTER_NEAREST);
 		regenTex();
 	}
@@ -1088,7 +1100,7 @@ Map::~Map()
 
 #ifndef DEDICATED_SERVER
 //
-// Pour générer la texture de la minimap
+// Pour gï¿½nï¿½rer la texture de la minimap
 //
 void Map::regenTex()
 {
@@ -1211,7 +1223,7 @@ void Map::update(float delay, Player * thisPlayer)
 			{
 				if (thisPlayer->weapon->weaponID == WEAPON_SNIPER)
 				{
-					//--- Dépendament de la distance entre la mouse et le player
+					//--- Dï¿½pendament de la distance entre la mouse et le player
 					float dis = distance(thisPlayer->currentCF.mousePosOnMap, thisPlayer->currentCF.position) * 2;
 					if (dis > 12) dis = 12;
 					if (dis < 5) dis = 5;
@@ -1462,11 +1474,11 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 		return result;
 	}
 
-	// On pogne notre cell de départ
+	// On pogne notre cell de dï¿½part
 	int i = (int)p1[0];
 	int j = (int)p1[1];
 
-	// On check que notre tuile n'est pas déjà occupé
+	// On check que notre tuile n'est pas dï¿½jï¿½ occupï¿½
 	if (i >= 0 &&
 		i < size[0] &&
 		j >= 0 &&
@@ -1484,7 +1496,7 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 	}
 
 
-	// On défini dans quel sens on va voyager (4 sens)
+	// On dï¿½fini dans quel sens on va voyager (4 sens)
 	int sens;
 	if (fabsf(p2[0] - p1[0]) > fabsf(p2[1] - p1[1]))
 	{
@@ -1509,11 +1521,11 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 		}
 	}
 
-	// On while tant qu'on ne l'a pas trouvé
+	// On while tant qu'on ne l'a pas trouvï¿½
 	float percent;
 	while (true)
 	{
-		// On check qu'on n'a pas dépassé
+		// On check qu'on n'a pas dï¿½passï¿½
 		if (i < 0 ||
 			i >= size[0] ||
 			j < 0 ||
@@ -1534,7 +1546,7 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 			if (rayTileTest(i, j-1, p1, p2, normal)) return true;
 			if (rayTileTest(i, j+1, p1, p2, normal)) return true;
 
-			// On incrémente à la prochaine tuile
+			// On incrï¿½mente ï¿½ la prochaine tuile
 			i++;
 			percent = ((float)i - p1[0]) / fabsf(p2[0] - p1[0]);
 			j = (int)(p1[1] + (p2[1] - p1[1]) * percent);
@@ -1546,7 +1558,7 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 			if (rayTileTest(i, j-1, p1, p2, normal)) return true;
 			if (rayTileTest(i, j+1, p1, p2, normal)) return true;
 
-			// On incrémente à la prochaine tuile
+			// On incrï¿½mente ï¿½ la prochaine tuile
 			i--;
 			percent = (p1[0] - (float)(i+1)) / fabsf(p2[0] - p1[0]);
 			j = (int)(p1[1] + (p2[1] - p1[1]) * percent);
@@ -1558,7 +1570,7 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 			if (rayTileTest(i-1, j, p1, p2, normal)) return true;
 			if (rayTileTest(i+1, j, p1, p2, normal)) return true;
 
-			// On incrémente à la prochaine tuile
+			// On incrï¿½mente ï¿½ la prochaine tuile
 			j++;
 			percent = ((float)j - p1[1]) / fabsf(p2[1] - p1[1]);
 			i = (int)(p1[0] + (p2[0] - p1[0]) * percent);
@@ -1570,7 +1582,7 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 			if (rayTileTest(i-1, j, p1, p2, normal)) return true;
 			if (rayTileTest(i+1, j, p1, p2, normal)) return true;
 
-			// On incrémente à la prochaine tuile
+			// On incrï¿½mente ï¿½ la prochaine tuile
 			j--;
 			percent = (p1[1] - (float)(j+1)) / fabsf(p2[1] - p1[1]);
 			i = (int)(p1[0] + (p2[0] - p1[0]) * percent);
@@ -1586,6 +1598,7 @@ bool Map::rayTest(CVector3f & p1, CVector3f & p2, CVector3f & normal)
 void GetMapList(std::vector< CString > & maps)
 {
 	maps.clear();
+#ifdef WIN32
 	WIN32_FIND_DATA FindFileData;
 	HANDLE hFind = INVALID_HANDLE_VALUE;
 	char DirSpec[MAX_PATH];  // directory specification
@@ -1613,6 +1626,33 @@ void GetMapList(std::vector< CString > & maps)
 		}
 		FindClose(hFind);
 	}
+#else
+	char appPath[PATH_MAX];
+	if (!getcwd(appPath, sizeof(appPath)))
+		return;
+
+	char dirPath[PATH_MAX];
+	std::snprintf(dirPath, sizeof(dirPath), "%s/main/maps", appPath);
+
+	DIR *dir = opendir(dirPath);
+	if (!dir)
+		return;
+
+	struct dirent *ent;
+	while ((ent = readdir(dir)) != NULL)
+	{
+		const char *name = ent->d_name;
+		const size_t len = std::strlen(name);
+		if (len <= 4)
+			continue;
+		if (strcasecmp(name + len - 4, ".bvm") != 0)
+			continue;
+		CString filename("%s", name);
+		filename.resize(filename.len() - 4);
+		maps.push_back(filename);
+	}
+	closedir(dir);
+#endif
 }
 
 bool GetMapData(CString name, unsigned int & texture, CVector2i & textureSize, CVector2i & size, CString & author)

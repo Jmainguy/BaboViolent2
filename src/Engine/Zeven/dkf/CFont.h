@@ -23,13 +23,13 @@
 
 Class : CFont
 Auteur : David St-Louis
-Compatibilité : <all>
+Compatibilitï¿½ : <all>
 
 < Description >
 
-Construction d'un font, et permet d'imprimer à l'écran dans cette
+Construction d'un font, et permet d'imprimer ï¿½ l'ï¿½cran dans cette
 police.
-Voici quelque spécificité :
+Voici quelque spï¿½cificitï¿½ :
 \n = retour de chariot (automatique)
 ^0 = texte noir (user)
 ^1 = texte bleu (user)
@@ -53,8 +53,9 @@ Voici quelque spécificité :
 
 using namespace std;
 
-
+#ifdef WIN32
 #include <windows.h>
+#endif
 // Les includes pour opengl
 #include "dkgl.h"
 
@@ -85,7 +86,7 @@ public:
 	// Le fichier Font .fnt
 	CString filename;
 
-	// La texture utilisé (ogl)
+	// La texture utilisï¿½ (ogl)
 	unsigned int textureID;
 
 	// La grosseur de chaque lettre
@@ -95,13 +96,13 @@ public:
 	// La hauteur des lettres
 	int height;
 
-	// La liste de display list contenant les caractère individuel
+	// La liste de display list contenant les caractï¿½re individuel
 	unsigned int baseFont;
 
 	// Son ID du dkf
 	unsigned int fontID;
 
-	// Les propriétées de chaque lettre
+	// Les propriï¿½tï¿½es de chaque lettre
 	typ_characterProp characterProp[256];
 
 	// Si cette font est tga ou fnt
@@ -119,18 +120,18 @@ public:
 
 public:
 
-	// Pour la détruire
+	// Pour la dï¿½truire
 	void destroy();
 
-	// Pour loader les propriétées de la police d'un fichier
+	// Pour loader les propriï¿½tï¿½es de la police d'un fichier
 	int loadFontFile(ifstream &fntFile);
 	int loadTGAFile(char * tgaFile);
 
-	// Pour créer la police
-	int create(CString filename); // attention, ceci ne cré PAS les display list
-	void reloadIt(); // Ceci va la créer (parce que ça nous prend le bon context avec le bon renderer)
+	// Pour crï¿½er la police
+	int create(CString filename); // attention, ceci ne crï¿½ PAS les display list
+	void reloadIt(); // Ceci va la crï¿½er (parce que ï¿½a nous prend le bon context avec le bon renderer)
 
-	// Pour imprimer du texte à l'aide de cette police
+	// Pour imprimer du texte ï¿½ l'aide de cette police
 	void printText(float size, float x, float y, float z, char *text);
 };
 

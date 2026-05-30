@@ -174,11 +174,8 @@ public:
 	CString zsv_adminUser;
 	CString zsv_adminPass;
 
-	CString db_accountServer;
 	int db_version;
 
-	CString cl_accountUsername;
-	CString cl_accountPassword;
 	CString cl_playerName;
 	CString cl_mapAuthorName;
 	bool cl_cubicMotion;
@@ -292,6 +289,8 @@ public:
 
 	// Si on est en debug !!! tr�s important
 	bool c_debug;
+	bool c_netlog;
+	bool c_stdoutlog;
 	bool c_huge;
 	bool d_showPath;
 	bool d_showNodes;
@@ -572,6 +571,8 @@ public:
 	// Pour loader les lang_ var
 	bool loadLanguage(char * filename);
 	bool isLanguageLoaded();
+	// Reset client key cvars left at -1 by a corrupt/partial bv2.cfg save
+	void repairKeyBindings();
 #endif
 };
 

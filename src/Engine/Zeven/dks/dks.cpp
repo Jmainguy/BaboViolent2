@@ -30,6 +30,11 @@
 #ifdef USE_FMODEX
 #include <fmod_errors.h>
 #endif
+#if defined(USE_SDL_MIXER)
+#include <SDL.h>
+#include <SDL_mixer.h>
+#include <stdio.h>
+#endif
 
 class CSound
 {
@@ -39,6 +44,9 @@ public:
 #ifdef USE_FMODEX
     FMOD_SOUND * fsound_sample;
     FMOD_CHANNEL * channel;
+#elif defined(USE_SDL_MIXER)
+	Mix_Chunk *fsound_sample;
+	int activeChannel;
 #else
 	FSOUND_SAMPLE *fsound_sample;
 #endif
@@ -50,6 +58,8 @@ public:
 		fsound_sample = 0;
 #ifdef USE_FMODEX
         channel = 0;
+#elif defined(USE_SDL_MIXER)
+		activeChannel = -1;
 #endif
 	}
 
@@ -63,6 +73,15 @@ public:
         }
         fsound_sample = 0;
         channel = 0;
+#elif defined(USE_SDL_MIXER)
+		if (fsound_sample)
+		{
+			if (activeChannel >= 0)
+				Mix_HaltChannel(activeChannel);
+			Mix_FreeChunk(fsound_sample);
+		}
+		fsound_sample = 0;
+		activeChannel = -1;
 #else
 		//if (fsound_sample) 
             //FSOUND_Sample_Free(fsound_sample);
@@ -78,6 +97,10 @@ using FSOUND_STREAM = void;
 FMOD_SYSTEM * s_system = 0;
 FMOD_SOUND * stream_music = 0;
 FMOD_CHANNEL * music_channel = 0;
+
+#elif defined(USE_SDL_MIXER)
+static Mix_Music *sdl_music = 0;
+static bool sdl_mixer_ready = false;
 
 #else
 FSOUND_STREAM * stream_music = 0;
@@ -168,6 +191,34 @@ l_abort:
     }
     return r;
 
+#elif defined(USE_SDL_MIXER)
+	if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
+	{
+		fprintf(stderr, "SDL audio init: %s\n", SDL_GetError());
+		return false;
+	}
+	int mixFlags = Mix_Init(MIX_INIT_OGG | MIX_INIT_MP3);
+	if ((mixFlags & MIX_INIT_OGG) == 0)
+		fprintf(stderr, "SDL_mixer (OGG): %s\n", Mix_GetError());
+	if ((mixFlags & MIX_INIT_MP3) == 0)
+		fprintf(stderr, "SDL_mixer (MP3): %s\n", Mix_GetError());
+
+	int ch = maxsoftwarechannels;
+	if (ch < 8)
+		ch = 8;
+	if (ch > 64)
+		ch = 64;
+	if (Mix_OpenAudio(mixrate, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+	{
+		fprintf(stderr, "Mix_OpenAudio: %s\n", Mix_GetError());
+		Mix_Quit();
+		SDL_QuitSubSystem(SDL_INIT_AUDIO);
+		return false;
+	}
+	Mix_AllocateChannels(ch);
+	sdl_mixer_ready = true;
+	return true;
+
 #else
 	//if (FSOUND_Init(mixrate, maxsoftwarechannels, 0) == TRUE)
 	//{
@@ -210,6 +261,15 @@ void			dksShutDown()
         printf("FMOD error: %d (%s)\n", r, FMOD_ErrorString(r));   
     }
 
+#elif defined(USE_SDL_MIXER)
+	if (sdl_mixer_ready)
+	{
+		Mix_CloseAudio();
+		Mix_Quit();
+		SDL_QuitSubSystem(SDL_INIT_AUDIO);
+		sdl_mixer_ready = false;
+	}
+
 #else
 	//FSOUND_Close();
 #endif
@@ -234,6 +294,9 @@ FSOUND_SAMPLE
 #ifdef USE_FMODEX
     if(!s_system)
         return 0;
+#elif defined(USE_SDL_MIXER)
+	if (!sdl_mixer_ready)
+		return 0;
 #endif
 
 	// On check si il n'existe pas d�j� en comparant les filename
@@ -262,6 +325,15 @@ FSOUND_SAMPLE
             delete newSound;
             return 0;
         }
+#elif defined(USE_SDL_MIXER)
+		newSound->fsound_sample = Mix_LoadWAV(filename);
+		if (!newSound->fsound_sample)
+		{
+			fprintf(stderr, "Mix_LoadWAV %s: %s\n", filename, Mix_GetError());
+			delete newSound;
+			return 0;
+		}
+		(void)loop;
 #else
 		//newSound->fsound_sample = FSOUND_Sample_Load(FSOUND_FREE, filename, (loop)?FSOUND_LOOP_NORMAL:FSOUND_LOOP_OFF, 0,0);
 #endif
@@ -387,6 +459,37 @@ int dksPlaySound(
         goto l_abort;
     }
     
+#elif defined(USE_SDL_MIXER)
+	{
+		if (!sdl_mixer_ready || !fsound_sample)
+			return 0;
+		Mix_Chunk *chunk = (Mix_Chunk *)fsound_sample;
+		CSound *s = 0;
+		for (std::vector<CSound *>::iterator it = sounds.begin(); it != sounds.end(); ++it)
+		{
+			if ((*it)->fsound_sample == chunk)
+			{
+				s = *it;
+				break;
+			}
+		}
+		if (!s)
+			return 0;
+		int ch = (mchannel < 0) ? -1 : (mchannel % 64);
+		if (ch < -1)
+			ch = -1;
+		ch = Mix_PlayChannel(ch, chunk, 0);
+		if (ch < 0)
+		{
+			fprintf(stderr, "Mix_PlayChannel: %s\n", Mix_GetError());
+			return 0;
+		}
+		Mix_Volume(ch, (volume * MIX_MAX_VOLUME) / 255);
+		if (s->activeChannel >= 0 && s->activeChannel != ch)
+			Mix_HaltChannel(s->activeChannel);
+		s->activeChannel = ch;
+		return 0;
+	}
 #else
 	//FSOUND_Sample_SetMode(fsound_sample, FSOUND_2D);
 	//int channel = FSOUND_PlaySoundEx(mchannel, fsound_sample, 0, TRUE);
@@ -492,8 +595,12 @@ void dksPlay3DSound(
     }
 
 l_abort:
-    if((r != FMOD_OK) && message)
+    if((r != FMOD_OK) && message && s)
         printf("FMOD error: %d (%s) for %s\n", r, message, s->filename.s);
+#elif defined(USE_SDL_MIXER)
+	(void)range;
+	(void)position;
+	dksPlaySound(fsound_sample, mchannel, volume);
 #else
  //  int channel = FSOUND_PlaySoundEx(mchannel, fsound_sample, 0, TRUE);
 	//FSOUND_3D_SetMinMaxDistance(channel, range, 10000000.0f);
@@ -550,6 +657,25 @@ l_abort:
     if((r != FMOD_OK) && message)
         printf("FMOD error: %d (%s)\n", r, message);    
 
+#elif defined(USE_SDL_MIXER)
+	(void)mchannel;
+	if (!sdl_mixer_ready)
+		return;
+	sdl_music = Mix_LoadMUS(filename);
+	if (!sdl_music)
+	{
+		fprintf(stderr, "Mix_LoadMUS %s: %s\n", filename, Mix_GetError());
+		return;
+	}
+	if (Mix_PlayMusic(sdl_music, -1) < 0)
+	{
+		fprintf(stderr, "Mix_PlayMusic: %s\n", Mix_GetError());
+		Mix_FreeMusic(sdl_music);
+		sdl_music = 0;
+		return;
+	}
+	Mix_VolumeMusic((volume * MIX_MAX_VOLUME) / 255);
+
 #else
 	//stream_music = FSOUND_Stream_Open(filename,FSOUND_LOOP_NORMAL,0,0);
 	//if (stream_music) 
@@ -568,18 +694,29 @@ l_abort:
 // 
 void			dksStopMusic()
 {
+#ifdef USE_FMODEX
 	if (stream_music)
 	{
-#ifdef USE_FMODEX
         if(!s_system) return;
         FMOD_Channel_Stop(music_channel);
         FMOD_Sound_Release(stream_music);
-#else
-		//FSOUND_Stream_Stop(stream_music);
-		//FSOUND_Stream_Close(stream_music);
-#endif
 		stream_music = 0;
 	}
+#elif defined(USE_SDL_MIXER)
+	if (sdl_music)
+	{
+		Mix_HaltMusic();
+		Mix_FreeMusic(sdl_music);
+		sdl_music = 0;
+	}
+#else
+	if (stream_music)
+	{
+		//FSOUND_Stream_Stop(stream_music);
+		//FSOUND_Stream_Close(stream_music);
+		stream_music = 0;
+	}
+#endif
 }
 
 #ifdef USE_FMODEX
@@ -699,4 +836,18 @@ void FSOUND_StopSound(int channel)
 
 void FSOUND_SetSFXMasterVolume(int vol)
 {
+	if (vol < 0)
+		vol = 0;
+	if (vol > 255)
+		vol = 255;
+#ifdef USE_FMODEX
+	dksSetSfxMasterVolume((float)vol / 255.0f);
+#elif defined(USE_SDL_MIXER)
+	if (sdl_mixer_ready)
+	{
+		const int mixVol = (vol * MIX_MAX_VOLUME) / 255;
+		Mix_MasterVolume(mixVol);
+		Mix_VolumeMusic(mixVol);
+	}
+#endif
 }

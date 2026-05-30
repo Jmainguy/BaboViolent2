@@ -22,7 +22,6 @@
 #include "CMenuManager.h"
 #include "Console.h"
 #include "CMaster.h"
-#include "CCurl.h"
 #include "Scene.h"
 #include "CUserLogin.h"
 

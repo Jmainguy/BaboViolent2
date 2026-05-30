@@ -40,9 +40,6 @@
 #define ICONE_3DVIEW			0x0008
 
 
-class CCurl;
-
-
 class Scene
 {
 public:
@@ -56,7 +53,7 @@ public:
 	// Le client
 	Client * client;
 
-	// Le Map editor (Ça ne peut pas coexister avec client et server)
+	// Le Map editor (ï¿½a ne peut pas coexister avec client et server)
 	Editor * editor;
 
 	// Le menu
@@ -79,7 +76,7 @@ public:
 	//--- Head games logo bottom right
 	//unsigned int tex_miniHeadGames;
 #endif
-	// Le delait pour sender les server info (à chaque 20sec)
+	// Le delait pour sender les server info (ï¿½ chaque 20sec)
 	float serverInfoDelay;
 	bool masterReady;
 
@@ -102,7 +99,7 @@ public:
 	void createMenu();
 	void createSurvey();
 #endif
-	// Pour créer, join, disconnecter d'une game
+	// Pour crï¿½er, join, disconnecter d'une game
 	void host(CString mapName);
 	void dedicate(CString mapName);
 #ifndef DEDICATED_SERVER

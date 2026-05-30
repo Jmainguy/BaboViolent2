@@ -73,9 +73,6 @@ void CMaster::UpdateDB()
 	sprintf(SQL,"Update LauncherSettings Set Value = '%i' Where Name = 'DBVersion';", gameVar.db_version);
 	sqlite3_exec(DB,SQL,0,0,0);
 
-	sprintf(SQL,"Update LauncherSettings Set Value = '%s' Where Name = 'AccountURL';", gameVar.db_accountServer.s);
-	sqlite3_exec(DB,SQL,0,0,0);	
-
 	sqlite3_close(DB);
 }
 
@@ -85,6 +82,8 @@ void CMaster::UpdateDB()
 //
 void CMaster::connectToMaster(const char* in_IP, short in_port)
 {
+	if (uniqueClientID)
+		disconnectMaster();
 	uniqueClientID = bb_clientConnect(in_IP, in_port);
 	m_isConnected = false;
 }
@@ -206,24 +205,27 @@ void CMaster::update(float in_delay)
 		if (result == 1)
 		{
 			// Une erreur !!! On arr�e tout !!!
-			if (gameVar.c_debug) console->add(CString("\x4> Error connection to master : %s", bb_clientGetLastError(uniqueClientID)));
+			if (console)
+				console->add(CString("\x4> Master listing TCP %s:%u - %s (not your game port; players use sv_port.)",
+					m_IP, (unsigned)m_Port, bb_clientGetLastError(uniqueClientID)));
+			bb_clientDisconnect(uniqueClientID);
 			uniqueClientID = 0;
 			m_isConnected = false;
 			ZEVEN_SAFE_DELETE(m_ping);
 		}
 		else if (result == 2)
 		{
-			// Le server a foutu le CAMP !
-			//if (gameVar.c_debug) console->add("\x9> Master server disconnected");
+			if (console && (gameVar.c_debug || gameVar.c_netlog))
+				console->add("\x3> Master closed TCP session (bb_clientUpdate result 2)");
+			bb_clientDisconnect(uniqueClientID);
 			uniqueClientID = 0;
 			m_isConnected = false;
 			ZEVEN_SAFE_DELETE(m_ping);
 		}
 		else if (result == 3)
 		{
-			//if (gameVar.c_debug) console->add("\x3> Master server connected");
-
-			//--- We are connected.
+			if (console && (gameVar.c_debug || gameVar.c_netlog))
+				console->add("\x3> Master TCP session established");
 			m_isConnected = true;
 		}
 	}
@@ -681,8 +683,9 @@ void CMaster::RA_DisconnectedPlayer( char * in_playerName, char * in_playerIp, l
 void CMaster::RA_Chat( char * in_chatString, int playerId )
 {
 	net_ra_chat chat;
-	sprintf( chat.message, "%s", in_chatString );
-	chat.message[127] = '\0';
+	const char *chatSrc = in_chatString ? in_chatString : "";
+	snprintf( chat.message, sizeof(chat.message), "%s", chatSrc );
+	chat.message[sizeof(chat.message) - 1] = '\0';
 	chat.id = playerId;
 
 	for( unsigned int i=0; i<m_peers.size();i++ )
@@ -697,8 +700,9 @@ void CMaster::RA_Chat( char * in_chatString, int playerId )
 void CMaster::RA_ConsoleBroadcast( char * in_message )
 {
 	net_ra_console_broadcast bc;
-	sprintf( bc.message, "%s", in_message );
-	bc.message[127] = '\0';
+	const char *msg = in_message ? in_message : "";
+	snprintf( bc.message, sizeof(bc.message), "%s", msg );
+	bc.message[sizeof(bc.message) - 1] = '\0';
 
 	for( unsigned int i=0; i<m_peers.size();i++ )
 	{
@@ -809,14 +813,10 @@ void CMaster::recvPacket(const char * buffer, int typeID)
 		}
 	case ACCOUNT_URL:
 		{
-			unsigned short version=0;
-			memcpy(&version,buffer,2);
+			unsigned short version = 0;
+			memcpy(&version, buffer, 2);
 			gameVar.db_version = version;
-			gameVar.db_accountServer = CString((char*)buffer + 2);
-
-			// update the db
 			UpdateDB();
-			
 			break;
 		}
 	case SURVEY_CONFIRM:
@@ -863,10 +863,19 @@ void CMaster::sendGameInfo(Server* server)
 {
 	if (server->game)
 	{
-		//clear la message stack first
 		int i;
-
-		ZEVEN_DELETE_VECTOR(messageStack, i);
+		// Replace only prior BV2_ROW heartbeats; do not drop other queued master packets
+		// (e.g. while the TCP session is still handshaking), or registration can flap.
+		for (std::vector<SMasterMessage*>::iterator it = messageStack.begin(); it != messageStack.end(); )
+		{
+			if ((*it)->typeID == BV2_ROW)
+			{
+				delete *it;
+				it = messageStack.erase(it);
+			}
+			else
+				++it;
+		}
 
 		stBV2row bv2Row;
 
@@ -929,54 +938,74 @@ void CMaster::requestGames()
 //
 void CMaster::GetMasterInfos()
 {
-	//connect to database
+	// Defaults if DB is missing or tables differ (e.g. master-server bv2.db vs client launcher DB).
+	strncpy(m_IP, "babo.soh.re", sizeof(m_IP) - 1);
+	m_IP[sizeof(m_IP) - 1] = '\0';
+	m_Port = 10207;
+	strncpy(m_CurrentVersion, "4.0", sizeof(m_CurrentVersion) - 1);
+	m_CurrentVersion[sizeof(m_CurrentVersion) - 1] = '\0';
+
 	sqlite3 *db = 0;
-	
-	int rc = sqlite3_open("bv2.db",&db);
-	if(rc)
+	if (sqlite3_open("bv2.db", &db) != SQLITE_OK)
 	{
-		console->add("Game Database not found, please re-install the game");
-		return ;
-	}
-	else
-	{
-		//printf("Opened database successfully\n");
+		if (db)
+			sqlite3_close(db);
+		if (console)
+			console->add("Game Database not found (bv2.db); using default master babo.soh.re:10207");
+		return;
 	}
 
-	//some infos to load the data
-	char	*zErrMsg;		// holds error msg if any
-	char	**azResult;		// contains the actual returned data
-	int		nRow;			// number of record
-	int		nColumn;		// number of column
-	char	SQL[256];		// the query
+	char *zErrMsg = 0;
+	char **azResult = 0;
+	int nRow = 0;
+	int nColumn = 0;
+	char SQL[256];
 
-	// Get infos of master servers and choose the one with the lowest Score
-	sprintf(SQL,"Select * From MasterServers;");
-	sqlite3_get_table(db,SQL,&azResult,&nRow,&nColumn,&zErrMsg);
-
-	
-	int i,best=9999,bestIndex=0;
-	for(i=0;i<nRow;i++)
+	sprintf(SQL, "Select * From MasterServers;");
+	int rc = sqlite3_get_table(db, SQL, &azResult, &nRow, &nColumn, &zErrMsg);
+	// sqlite3_get_table: names [0..nColumn-1], row i data at [nColumn + i*nColumn ..].
+	// MasterServers macros use i*nColumn+5..9 (valid when nColumn == 5, as in the launcher DB).
+	// MasterServers layout matches the launcher DB: 5 columns per row (macros use i*nColumn+5..9).
+	if (rc == SQLITE_OK && azResult != NULL && nRow >= 1 && nColumn == 5)
 	{
-		if( atoi(azResult[MASTER_SCORE]) < best )
+		int i, best = 9999, bestIndex = 0;
+		for (i = 0; i < nRow; i++)
 		{
-			best = atoi(azResult[MASTER_SCORE]);
-			bestIndex = i;
+			const char *scoreStr = azResult[MASTER_SCORE];
+			if (scoreStr && atoi(scoreStr) < best)
+			{
+				best = atoi(scoreStr);
+				bestIndex = i;
+			}
 		}
+		i = bestIndex;
+		const char *ipStr = azResult[MASTER_IP];
+		const char *portStr = azResult[MASTER_PORT];
+		if (ipStr)
+		{
+			strncpy(m_IP, ipStr, sizeof(m_IP) - 1);
+			m_IP[sizeof(m_IP) - 1] = '\0';
+		}
+		if (portStr)
+			m_Port = (unsigned short)(atoi(portStr) - 1000);
 	}
-	i = bestIndex;
-	sprintf( m_IP , "%s", azResult[MASTER_IP]);
-	m_Port = atoi(azResult[MASTER_PORT]) - 1000;
+	if (zErrMsg)
+	{
+		sqlite3_free(zErrMsg);
+		zErrMsg = 0;
+	}
+	sqlite3_free_table(azResult);
+	azResult = 0;
+
+	sprintf(SQL, "Select Value From LauncherSettings Where Name = 'Version';");
+	rc = sqlite3_get_table(db, SQL, &azResult, &nRow, &nColumn, &zErrMsg);
+	if (rc == SQLITE_OK && azResult != NULL && nRow >= 1 && nColumn >= 1 && azResult[nColumn] != NULL)
+		snprintf(m_CurrentVersion, sizeof(m_CurrentVersion), "%s", azResult[nColumn]);
+	if (zErrMsg)
+		sqlite3_free(zErrMsg);
 	sqlite3_free_table(azResult);
 
-	// get our current game version
-	sprintf(SQL,"Select Value From LauncherSettings Where Name = 'Version';");
-	sqlite3_get_table(db,SQL,&azResult,&nRow,&nColumn,&zErrMsg);
-
-	sprintf( m_CurrentVersion , azResult[1] );
-	
-	sqlite3_free_table(azResult);
-	sqlite3_close( db );
+	sqlite3_close(db);
 }
 
 
@@ -986,12 +1015,14 @@ void CMaster::GetMasterInfos()
 void CMaster::sendPacket(const char* in_data, int in_size, int in_ID, bool disconnectAfter)
 {
 
-	//--- Are we connected?
+	//--- Are we connected? (uniqueClientID is our BaboNet TCP client to the master, not "is the master binary up".)
 	if (!uniqueClientID)
 	{
-		//--- Connect us first
+		//--- Connect us first (session was closed, never opened, or cleared after an error)
 		connectToMaster( m_IP , m_Port );
-		console->add(" master needed to connect ");
+		if (console && (gameVar.c_debug || gameVar.c_netlog))
+			console->add(CString("\x3> Master: no TCP link from this process; dialing %s:%u (master may still be running elsewhere).",
+				m_IP, (unsigned)m_Port));
 	}
 
 	// add the message to the queue

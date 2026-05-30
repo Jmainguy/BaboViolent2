@@ -19,7 +19,6 @@
 #ifndef DEDICATED_SERVER
 
 #include "CHost.h"
-#include <direct.h>
 #include "Map.h"
 #include "FileIO.h"
 #include "Scene.h"
@@ -126,8 +125,8 @@ unsigned int loadMapPreview(CString mapFilename)
 		}
 	}
 
-	// On cré l'espace pour la texture
-	//--- Est-ce qu'on a une minimap possible de ça?
+	// On crï¿½ l'espace pour la texture
+	//--- Est-ce qu'on a une minimap possible de ï¿½a?
 	FileIO* fileTGA = new FileIO(CString("main/modelmaps___/") + mapFilename + "/minimap.tga", "rb");
 	unsigned int texMap = 0;
 	if (fileTGA->isValid())
@@ -380,42 +379,22 @@ CHost::CHost(CControl * in_parent, CControl * in_alignTo)
 	//--- MAPS
 	separator = new CControl(instance, CVector2i(10,10), CVector2i(150,25),"Map list", this, "SEPARATOR", label1, CONTROL_SNAP_BOTTOM, 15);
 
-	WIN32_FIND_DATA FindFileData;
-	HANDLE hFind = INVALID_HANDLE_VALUE;
-	char DirSpec[MAX_PATH];  // directory specification
-	DWORD dwError;
-	char appPath[_MAX_PATH];
-
-	// Chercher le path du "current working directory".
-	_getcwd(appPath, _MAX_PATH);
-
-	strncpy(DirSpec, appPath, strlen(appPath)+1);
-	strncat(DirSpec, "\\main\\maps\\*.bvm", strlen("\\main\\maps\\*.bvm")+1);
-
-	hFind = FindFirstFile(DirSpec, &FindFileData);
-
 	label1 = new CControl(instance, CVector2i(10,10), CVector2i(600,40),"Check the maps you want to include on this server.", this, "LABEL", separator, CONTROL_SNAP_BOTTOM,15);
 
-	if (hFind == INVALID_HANDLE_VALUE)
+	std::vector<CString> mapList;
+	GetMapList(mapList);
+
+	if (!mapList.empty())
 	{
-		// Si on ne trouve pas le répertoire désiré.
-	}
-	else
-	{
-		CString filename = CString(FindFileData.cFileName);
-		filename.resize(filename.len() - 4);
+		CString filename = mapList[0];
 
 		int tileX, tileY;
 		int topH;
 		tileX = label1->localPos[0] + 15;
 		tileY = label1->localPos[1] + label1->size[1] + 15;
 
-		//--- Map
-	//	label1 = new CControl(instance, CVector2i(10,10), CVector2i(200,64),filename, this, "LABEL", label1, CONTROL_SNAP_BOTTOM);
-	//	label1->textAlign = CONTROL_TEXTALIGN_MIDDLERIGHT;
 		CControl * mapImg = new CControl(instance, CVector2i(tileX,tileY), CVector2i(64,64),filename, this, "CHECK");
 		mapImg->imgColor.set(1,1,1);
-//		mapImg->perfectFitTexture = true;
 		mapImg->texture = loadMapPreview(filename);
 		mapImg->textureCorner = g_sizeReal;
 		mapImg->useTextureCorner = true;
@@ -426,56 +405,35 @@ CHost::CHost(CControl * in_parent, CControl * in_alignTo)
 		tileX = label1->localPos[0] + 15;
 		tileX += mapImg->size[0] + 15;
 
-
-
-		//--- We tile it
-
-		while (FindNextFile(hFind, &FindFileData) != 0)
+		for (size_t mi = 1; mi < mapList.size(); ++mi)
 		{
-			if(!(FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+			filename = mapList[mi];
+
+			mapImg = new CControl(instance, CVector2i(10,10), CVector2i(64,64),filename, this, "CHECK");
+			mapImg->imgColor.set(1,1,1);
+			mapImg->texture = loadMapPreview(filename);
+			mapImg->size = g_size * 5;
+			mapImg->textureCorner = g_sizeReal;
+			mapImg->useTextureCorner = true;
+
+			if (tileX + mapImg->size[0] > 700)
 			{
-				CString filename = CString(FindFileData.cFileName);
-				filename.resize(filename.len() - 4);
-
-
-				//--- Map
-			//	label1 = new CControl(instance, CVector2i(10,10), CVector2i(200,64),filename, this, "LABEL", label1, CONTROL_SNAP_BOTTOM);
-			//	label1->textAlign = CONTROL_TEXTALIGN_MIDDLERIGHT;
-				mapImg = new CControl(instance, CVector2i(10,10), CVector2i(64,64),filename, this, "CHECK");
-				mapImg->imgColor.set(1,1,1);
-		//		mapImg->perfectFitTexture = true;
-				mapImg->texture = loadMapPreview(filename);
-				mapImg->size = g_size * 5;
-				mapImg->textureCorner = g_sizeReal;
-				mapImg->useTextureCorner = true;
-
-				if (tileX + mapImg->size[0] > 700)
-				{
-					tileX = label1->localPos[0] + 15;
-					tileY += topH;
-					topH = 0;
-				}
-				mapImg->localPos[0] = tileX;
-				mapImg->localPos[1] = tileY;
-
-				mapImg->foreColor.set(1,1,1);
-				chk_maps.push_back(mapImg);
-
-				mapImg->localPos[0] = tileX;
-				mapImg->localPos[1] = tileY;
-				tileX += mapImg->size[0] + 15;
-				if (topH < mapImg->size[1] + 15) topH = mapImg->size[1] + 15;
+				tileX = label1->localPos[0] + 15;
+				tileY += topH;
+				topH = 0;
 			}
-		}
-		
-		dwError = GetLastError();
-		FindClose(hFind);
-		if (dwError != ERROR_NO_MORE_FILES)
-		{
-			// Si il y a une error en détectant qu'il n'y a plus de fichiers.
+			mapImg->localPos[0] = tileX;
+			mapImg->localPos[1] = tileY;
+
+			mapImg->foreColor.set(1,1,1);
+			chk_maps.push_back(mapImg);
+
+			mapImg->localPos[0] = tileX;
+			mapImg->localPos[1] = tileY;
+			tileX += mapImg->size[0] + 15;
+			if (topH < mapImg->size[1] + 15) topH = mapImg->size[1] + 15;
 		}
 	}
-
 
 	instance->backColor.set(0,.3f,.7f);
 	instance->imgColor = instance->backColor;
@@ -582,7 +540,7 @@ void CHost::Click(CControl * control)
 		gameVar.sv_forceRespawn = chk_forceRespawn->check;
 
 		//--- We launch the server, then add the maps
-		// On colle la première map
+		// On colle la premiï¿½re map
 		CString command = "host ";
 		bool firstCheck = true;
 

@@ -22,6 +22,10 @@
 #include "md5_2.h"
 #include "Console.h"
 
+#if defined(__linux__) && !defined(LINUX64)
+#include <unistd.h>
+#endif
+
 
 //
 // --- The server can queue the queries he asked to a certain client
@@ -77,7 +81,24 @@ public:
         return true;
         #else
 		int output[4];
-		int result = md5_file("./bv2.exe", (unsigned char*)&output);
+		int result = 1;
+#if defined(__linux__) && !defined(LINUX64)
+		{
+			char selfpath[512];
+			ssize_t n = readlink("/proc/self/exe", selfpath, sizeof(selfpath) - 1);
+			if (n > 0)
+			{
+				selfpath[n] = '\0';
+				result = md5_file(selfpath, (unsigned char*)&output);
+			}
+		}
+		if (result != 0)
+			return false;
+#else
+		result = md5_file("./bv2.exe", (unsigned char*)&output);
+		if (result != 0)
+			return false;
+#endif
 
 		//console->add(CString("\x03> MD5 Hash1 : %i",output[0]));
 		//console->add(CString("\x03> MD5 Hash2 : %i",output[1]));

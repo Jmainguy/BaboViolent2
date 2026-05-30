@@ -34,8 +34,85 @@ static SDL_GLContext gl_context = nullptr;
 static bool done = true;
 static CMainLoopInterface *mainLoopObject = nullptr;
 
+#ifndef DEDICATED_SERVER
+class Writting;
+extern Writting * writting;
+
+// Windows-style Alt + numeric keypad (or top-row digits): hold Alt, type 0155, release Alt ? char 155.
+static int s_altcodeValue = -2; // -2 idle; -1 Alt down, no digits yet; >= 0 accumulating decimal
+static bool s_skipNextSingleDigitTextinput = false;
+
+static int dkw_keycode_to_digit(SDL_Keycode sym)
+{
+	if (sym >= SDLK_KP_1 && sym <= SDLK_KP_9)
+		return (int)(sym - SDLK_KP_1 + 1);
+	if (sym == SDLK_KP_0)
+		return 0;
+	if (sym >= SDLK_0 && sym <= SDLK_9)
+		return (int)(sym - SDLK_0);
+	return -1;
+}
+
+static bool dkw_mod_alt_for_codes()
+{
+	const SDL_Keymod m = SDL_GetModState();
+	if ((m & KMOD_ALT) != 0)
+		return true;
+	// AltGr (e.g. many European layouts): Ctrl + right Alt
+	if ((m & KMOD_CTRL) != 0 && (m & KMOD_RALT) != 0)
+		return true;
+	if ((m & KMOD_MODE) != 0)
+		return true;
+	return false;
+}
+
+// UTF-8 from SDL_TEXTINPUT -> Unicode code points for Writting::writeText
+static void dkwSendTextUtf8(const char *text)
+{
+	if (!mainLoopObject || !text)
+		return;
+	if (s_skipNextSingleDigitTextinput && (unsigned char)text[0] >= '0' && (unsigned char)text[0] <= '9' && text[1] == '\0')
+	{
+		s_skipNextSingleDigitTextinput = false;
+		return;
+	}
+	const unsigned char *p = (const unsigned char *)text;
+	while (*p)
+	{
+		unsigned int c = 0;
+		if ((*p & 0x80u) == 0)
+		{
+			c = *p++;
+		}
+		else if ((*p & 0xE0u) == 0xC0u)
+		{
+			if (!p[1])
+				break;
+			c = (unsigned int)((p[0] & 0x1Fu) << 6) | (p[1] & 0x3Fu);
+			p += 2;
+		}
+		else if ((*p & 0xF0u) == 0xE0u)
+		{
+			if (!p[1] || !p[2])
+				break;
+			c = (unsigned int)((p[0] & 0x0Fu) << 12) | ((p[1] & 0x3Fu) << 6) | (p[2] & 0x3Fu);
+			p += 3;
+		}
+		else
+		{
+			++p;
+			continue;
+		}
+		// Enter is handled via SDL_KEYDOWN so we do not double-fire with TEXTINPUT
+		if (c == '\r' || c == '\n')
+			continue;
+		mainLoopObject->textWrite(c);
+	}
+}
+#endif
+
 //
-// La plus importante. Cré la fenêtre et init les cossin
+// La plus importante. Crï¿½ la fenï¿½tre et init les cossin
 //
 int dkwInit(int width, int height, int mcolorDepth, char* mTitle, CMainLoopInterface *mMainLoopObject, bool fullScreen, int refreshRate)
 {
@@ -89,11 +166,16 @@ int dkwInit(int width, int height, int mcolorDepth, char* mTitle, CMainLoopInter
 }
 
 //
-// Pour forcer l'application à fermer
+// Pour forcer l'application ï¿½ fermer
 //
 void dkwForceQuit()
 {
-    done = true;
+#ifdef DEDICATED_SERVER
+	extern bool quit;
+	quit = true;
+#else
+	done = true;
+#endif
 }
 
 //
@@ -105,7 +187,7 @@ SDL_GLContext dkwGetDC()
 }
 
 //
-// On obtien le handle de la fenêtre
+// On obtien le handle de la fenï¿½tre
 //
 SDL_Window* dkwGetHandle()
 {
@@ -113,7 +195,7 @@ SDL_Window* dkwGetHandle()
 }
 
 //
-// Obtenir la dernière erreur
+// Obtenir la derniï¿½re erreur
 //
 char* dkwGetLastError()
 {
@@ -121,7 +203,7 @@ char* dkwGetLastError()
 }
 
 //
-// Pour retourner la position de la sourie sur l'écran
+// Pour retourner la position de la sourie sur l'ï¿½cran
 //
 CVector2i dkwGetCursorPos()
 {
@@ -129,7 +211,7 @@ CVector2i dkwGetCursorPos()
 }
 
 //
-// On retourne la résolution de la fenêtre
+// On retourne la rï¿½solution de la fenï¿½tre
 //
 CVector2i dkwGetResolution()
 {
@@ -166,6 +248,67 @@ int dkwMainLoop()
             done = true;
         if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
             done = true;
+#ifndef DEDICATED_SERVER
+		if (mainLoopObject && window)
+		{
+			const Uint32 ourId = SDL_GetWindowID(window);
+			if (event.type == SDL_TEXTINPUT)
+			{
+				if (event.text.windowID == ourId || event.text.windowID == 0)
+					dkwSendTextUtf8(event.text.text);
+			}
+			else if (event.type == SDL_KEYUP)
+			{
+				const SDL_Keycode sym = event.key.keysym.sym;
+				if (sym == SDLK_LALT || sym == SDLK_RALT)
+				{
+					s_skipNextSingleDigitTextinput = false;
+					if (writting && s_altcodeValue >= 0)
+					{
+						unsigned int c = (unsigned int)s_altcodeValue;
+						if (c > 0x10FFFFu)
+							c &= 0xFFFFu;
+						mainLoopObject->textWrite(c);
+					}
+					s_altcodeValue = -2;
+				}
+			}
+			else if (event.type == SDL_KEYDOWN)
+			{
+				if (event.key.windowID != 0 && event.key.windowID != ourId)
+					;
+				else
+				{
+					const SDL_Keycode sym = event.key.keysym.sym;
+					// Do not treat Alt autorepeat as a new chord (would clear digits mid-sequence).
+					if ((sym == SDLK_LALT || sym == SDLK_RALT) && event.key.repeat == 0)
+						s_altcodeValue = -1;
+
+					bool ate_alt_digit = false;
+					if (writting && dkw_mod_alt_for_codes())
+					{
+						const int d = dkw_keycode_to_digit(sym);
+						if (d >= 0)
+						{
+							if (s_altcodeValue < 0)
+								s_altcodeValue = d;
+							else if (s_altcodeValue <= 111411)
+								s_altcodeValue = s_altcodeValue * 10 + d;
+							s_skipNextSingleDigitTextinput = true;
+							ate_alt_digit = true;
+						}
+					}
+					if (!ate_alt_digit)
+					{
+						if (sym == SDLK_BACKSPACE)
+							mainLoopObject->textWrite(8);
+						else if (sym == SDLK_RETURN || sym == SDLK_KP_ENTER)
+							mainLoopObject->textWrite(13);
+					}
+				}
+			}
+		}
+#endif
         //if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
         //{
         //    width = event.window.data1;

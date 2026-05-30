@@ -19,9 +19,10 @@
 #ifndef DEDICATED_SERVER
 #include "Writting.h"
 #include "Helper.h"
+#include <SDL.h>
 
 
-// Le pointeur sur le writting qui a présentemnt le focus
+// Le pointeur sur le writting qui a prï¿½sentemnt le focus
 Writting * writting;
 
 
@@ -52,14 +53,14 @@ Writting::~Writting()
 
 
 //
-// Pour écrire dedans
+// Pour ï¿½crire dedans
 //
 void Writting::writeText(unsigned int caracter)
 {
-	// Bon y a des fucks là avec les caractères qui ont des accents
+	// Bon y a des fucks lï¿½ avec les caractï¿½res qui ont des accents
 	if (caracter > 127)
 	{
-		for (int i=0;i<1;++i) // Juste pour faire fonctionner le break là
+		for (int i=0;i<1;++i) // Juste pour faire fonctionner le break lï¿½
 		{
 			if (caracter == 199) {caracter = 128;break;}
 			if (caracter == 252) {caracter = 129;break;}
@@ -143,7 +144,7 @@ void Writting::writeText(unsigned int caracter)
 		}
 	}
 
-	// On écris notre caractère
+	// On ï¿½cris notre caractï¿½re
 	if (caracter >= 32 && caracter <= 159)
 	{
 		insert(CString("%c", caracter), m_cursorPos);
@@ -179,34 +180,34 @@ void Writting::updateWritting(float delay)
 	m_cursorAnim += delay;
 	while (m_cursorAnim >= 1) m_cursorAnim -= 1;
 
-	// Si on déplace avec les flèches
-	if (dkiGetState(SDLK_LEFT) == DKI_DOWN)
+	// Si on dï¿½place avec les flï¿½ches (must use scancodes: dkiUpdate fills allState from SDL_GetKeyboardState)
+	if (dkiGetState(SDL_SCANCODE_LEFT) == DKI_DOWN)
 	{
 		dksPlaySound(m_sfxWrite, -1, 200);
 		m_cursorAnim = 0;
 		m_cursorPos--;
 		if (m_cursorPos < 0) m_cursorPos = 0;
 	}
-	if (dkiGetState(SDLK_RIGHT) == DKI_DOWN)
+	if (dkiGetState(SDL_SCANCODE_RIGHT) == DKI_DOWN)
 	{
 		dksPlaySound(m_sfxWrite, -1, 200);
 		m_cursorAnim = 0;
 		m_cursorPos++;
 		if (m_cursorPos > len()) m_cursorPos = len();
 	}
-	if (dkiGetState(SDLK_HOME) == DKI_DOWN)
+	if (dkiGetState(SDL_SCANCODE_HOME) == DKI_DOWN)
 	{
 		dksPlaySound(m_sfxWrite, -1, 200);
 		m_cursorAnim = 0;
 		m_cursorPos = 0;
 	}
-	if (dkiGetState(SDLK_END) == DKI_DOWN)
+	if (dkiGetState(SDL_SCANCODE_END) == DKI_DOWN)
 	{
 		dksPlaySound(m_sfxWrite, -1, 200);
 		m_cursorAnim = 0;
 		m_cursorPos = len();
 	}
-	if (dkiGetState(SDLK_DELETE) == DKI_DOWN)
+	if (dkiGetState(SDL_SCANCODE_DELETE) == DKI_DOWN)
 	{
 		dksPlaySound(m_sfxWrite, -1, 200);
 		m_cursorAnim = 0;
@@ -230,6 +231,7 @@ void Writting::giveFocus()
 	m_cursorPos = len();
 	m_cursorAnim = 0;
 	m_haveFocus = true;
+	SDL_StartTextInput();
 }
 
 
@@ -239,7 +241,11 @@ void Writting::giveFocus()
 //
 void Writting::loseFocus()
 {
-	if (writting == this) writting = 0;
+	if (writting == this)
+	{
+		writting = 0;
+		SDL_StopTextInput();
+	}
 	m_haveFocus = false;
 }
 
@@ -250,7 +256,7 @@ void Writting::loseFocus()
 //
 void Writting::print(float size, float x, float y, float z)
 {
-	// On écris le text normalement
+	// On ï¿½cris le text normalement
 	printLeftText(x,y,size,CString("%s", s));
 //	dkfPrint(size, x, y, z, s);
 

@@ -127,7 +127,7 @@ public:
 	void svChange(CString command);
 
 	// Pour outputer l'erreur de la BB
-	void debugBBNET(bool client,bool server);
+	void debugBBNET(bool client, bool server, unsigned int gameClientBabonetID = 0);
 #ifndef DEDICATED_SERVER
 	// Pour la locker
 	void lock() {locked = true;}

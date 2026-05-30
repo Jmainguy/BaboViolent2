@@ -165,7 +165,7 @@ void			 dktChangeFilter(int filter)
 void reloadTGA(CTexture * texture)
 {
 #ifndef _DX_
-	// Les variables utilisé pour tenir l'information loadé du Targa
+	// Les variables utilisï¿½ pour tenir l'information loadï¿½ du Targa
 	unsigned char TGAcompare[12];
 	unsigned char header[6];
 	unsigned int bytesPerPixel;
@@ -179,10 +179,10 @@ void reloadTGA(CTexture * texture)
 	// On ouvre le fichier targa
 	FILE *file = fopen(texture->filename.s, "rb");
 
-	// Si ça marche pas, oups, on returne 0 comme texture.
+	// Si ï¿½a marche pas, oups, on returne 0 comme texture.
 	if (file == NULL) 
 	{
-		// on écris l'erreur dans le log
+		// on ï¿½cris l'erreur dans le log
 		CDkt::updateLastError(CString("ERROR > Can not read file : \"%s\"", texture->filename.s).s);
 		return;
 	}
@@ -211,10 +211,10 @@ void reloadTGA(CTexture * texture)
 	// On alou alors autant de bytes qu'il faut pour tenir l'image
 	imageData = new unsigned char [imageSize];
 
-	// On li maintenant le gros bloc de données
+	// On li maintenant le gros bloc de donnï¿½es
 	fread(imageData, 1, imageSize, file);
 
-	// On défini si c'est RGB ou RGBA
+	// On dï¿½fini si c'est RGB ou RGBA
 	GLint Level = (bytesPerPixel == 3) ? GL_RGB : GL_RGBA;
 
 	// Ici c'est con, mais faut switcher le rouge avec le bleu
@@ -253,7 +253,7 @@ unsigned int createTextureTGA(char * filename, int filter){
 	// Notre texture ID de ogl
 	unsigned int Texture = 0;
 
-		// On check quelle n'existe pas déjà
+		// On check quelle n'existe pas dï¿½jï¿½
 		for (int l=0;l<(int)CDkt::textures.size();l++)
 		{
 			CTexture *texture = CDkt::textures.at(l);
@@ -264,7 +264,7 @@ unsigned int createTextureTGA(char * filename, int filter){
 			}
 		}
 
-		// Les variables utilisé pour tenir l'information loadé du Targa
+		// Les variables utilisï¿½ pour tenir l'information loadï¿½ du Targa
 		unsigned char TGAcompare[12];
 		unsigned char header[6];
 		unsigned int bytesPerPixel;
@@ -278,11 +278,11 @@ unsigned int createTextureTGA(char * filename, int filter){
 		// On ouvre le fichier targa
 		FILE *file = fopen(filename, "rb");
 
-		// Si ça marche pas, oups, on returne 0 comme texture.
+		// Si ï¿½a marche pas, oups, on returne 0 comme texture.
 		if (file == NULL) 
 		{
-			// on écris l'erreur dans le log
-            printf("Cannot open texutre file: %s\n", filename);
+			// on ï¿½cris l'erreur dans le log
+            printf("Cannot open texture file: %s\n", filename);
 			CDkt::updateLastError(CString("ERROR > Can not read file : \"%s\"", filename).s);
 			return 0;
 		}
@@ -309,10 +309,10 @@ unsigned int createTextureTGA(char * filename, int filter){
 		// On alou alors autant de bytes qu'il faut pour tenir l'image
 		imageData = new unsigned char [imageSize];
 
-		// On li maintenant le gros bloc de données
+		// On li maintenant le gros bloc de donnï¿½es
 		fread(imageData, 1, imageSize, file);
 
-		// On défini si c'est RGB ou RGBA
+		// On dï¿½fini si c'est RGB ou RGBA
 		GLint Level = (bytesPerPixel == 3) ? GL_RGB : GL_RGBA;
 
 		// Ici c'est con, mais faut switcher le rouge avec le bleu
@@ -326,7 +326,7 @@ unsigned int createTextureTGA(char * filename, int filter){
 		// On ferme maintenant le fichier
 		fclose (file);
 
-		// On génère une texture
+		// On gï¿½nï¿½re une texture
 		glGenTextures(1, &Texture);
 
 		// On bind cette texture au context
@@ -376,7 +376,7 @@ unsigned int createTextureTGA(char * filename, int filter){
 		// On delete notre Data qu'on n'a pus besoin
 		delete [] imageData;
 
-		// On se cré notre nouvelle texture
+		// On se crï¿½ notre nouvelle texture
 		CTexture *texture = new CTexture;
 		texture->filename = filename;
 		texture->nbInstance = 1;
@@ -400,26 +400,26 @@ unsigned int createTextureTGA(char * filename, int filter){
 
 
 //
-// Pour créer une texture vide
+// Pour crï¿½er une texture vide
 //
 unsigned int	 dktCreateEmptyTexture(int w, int h, int bpp, int filter)
 {
 #ifndef _DX_
 	unsigned int textureID=0;
 	
-	// On se cré notre nouvelle texture
+	// On se crï¿½ notre nouvelle texture
 	CTexture *texture = new CTexture;
 	texture->filename = "Custom";
 	texture->nbInstance = 1;
 	CDkt::textures.push_back(texture);
 	texture->size.set(w,h);
 
-	// On cré notre array
+	// On crï¿½ notre array
 	int totalSize = w*h*bpp;
 	unsigned char *buffer = new unsigned char[w*h*bpp];
 	for (int i=0;i<totalSize;buffer[i++] = 255);
 
-	// On cré une texture ogl et on la bind
+	// On crï¿½ une texture ogl et on la bind
 	glGenTextures(1, &textureID);
 	texture->oglID = textureID;
 	glBindTexture(GL_TEXTURE_2D, textureID);
@@ -483,7 +483,7 @@ unsigned int	 dktCreateEmptyTexture(int w, int h, int bpp, int filter)
 
 
 //
-// Pour créer une texture à partir d'un buffer
+// Pour crï¿½er une texture ï¿½ partir d'un buffer
 //
 void			 dktCreateTextureFromBuffer(unsigned int *textureID, unsigned char *buffer, int w, int h, int bpp, int filter)
 {
@@ -491,13 +491,13 @@ void			 dktCreateTextureFromBuffer(unsigned int *textureID, unsigned char *buffe
 	// On delete l'ancienne (elle DOIT exister)
 	dktDeleteTexture(textureID);
 
-	// On se cré notre nouvelle texture
+	// On se crï¿½ notre nouvelle texture
 	CTexture *texture = new CTexture;
 	texture->filename = "Custom";
 	texture->nbInstance = 1;
 	CDkt::textures.push_back(texture);
 
-	// On cré une texture ogl et on la bind
+	// On crï¿½ une texture ogl et on la bind
 	glGenTextures(1, textureID);
 	texture->oglID = *textureID;
 	glBindTexture(GL_TEXTURE_2D, *textureID);
@@ -557,7 +557,7 @@ void			 dktCreateTextureFromBuffer(unsigned int *textureID, unsigned char *buffe
 
 
 //
-// Pour créer une texture à partir d'une image
+// Pour crï¿½er une texture ï¿½ partir d'une image
 //
 unsigned int	 dktCreateTextureFromFile(char *mFilename, int filter)
 {
@@ -568,7 +568,7 @@ unsigned int	 dktCreateTextureFromFile(char *mFilename, int filter)
 	}
 	else
 	{
-		// Doit obligatoirement être un TGA
+		// Doit obligatoirement ï¿½tre un TGA
 		CDkt::updateLastError("DKT : The image is not a TGA");
 		return 0;
 	}
@@ -578,7 +578,7 @@ unsigned int	 dktCreateTextureFromFile(char *mFilename, int filter)
 
 
 //
-// On update la dernière erreur
+// On update la derniï¿½re erreur
 //
 void CDkt::updateLastError(char *error)
 {
@@ -624,7 +624,7 @@ void			 dktDeleteTexture(unsigned int *textureID)
 
 
 //
-// Pour obtenir la dernière erreur
+// Pour obtenir la derniï¿½re erreur
 //
 char*			 dktGetLastError()
 {
@@ -648,7 +648,7 @@ int				 dktGetTextureBytePerPixel(unsigned int textureID)
 		}
 	}
 #endif
-	return 0; // La texture n'est pas trouvé
+	return 0; // La texture n'est pas trouvï¿½
 }
 
 
@@ -699,7 +699,7 @@ CVector2i		 dktGetTextureSize(unsigned int textureID)
 //
 void			 dktInit()
 {
-	// On a enlevé DevIL
+	// On a enlevï¿½ DevIL
 //	ilInit();
 }
 
@@ -719,7 +719,7 @@ void			 dktRenderToTexture(unsigned int textureID, int x, int y, int w, int h, u
 
 
 //
-// Pour effacer le tout à la fin
+// Pour effacer le tout ï¿½ la fin
 //
 void			 dktShutDown()
 {
@@ -735,7 +735,7 @@ void			 dktShutDown()
 
 
 //
-// Pour updater, ça check si une texture a été modifié à l'extérieur du programme pis ça la replace si cest le cas
+// Pour updater, ï¿½a check si une texture a ï¿½tï¿½ modifiï¿½ ï¿½ l'extï¿½rieur du programme pis ï¿½a la replace si cest le cas
 //
 void			 dktUpdate()
 {
@@ -749,7 +749,7 @@ void			 dktUpdate()
 		stat(texture->filename.s, &attrib);
 		INT4 tmpModifDate = INT4(attrib.st_mtime);
 
-		// Ça fonctionne juste avec les .tga notre affaire
+		// ï¿½a fonctionne juste avec les .tga notre affaire
 		if (texture->filename.checkExtension("tga"))
 		{
 			reloadTGA(texture);

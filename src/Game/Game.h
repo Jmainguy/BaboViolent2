@@ -157,7 +157,7 @@ struct FloorMark
 	{
 		delay = 0;
 	}
-	void set(CVector3f & pposition, float pangle, float psize, float pdelay, float pstartDelay, unsigned int ptexture, CVector4f pcolor)
+	void set(const CVector3f & pposition, float pangle, float psize, float pdelay, float pstartDelay, unsigned int ptexture, CVector4f pcolor)
 	{
 		position = pposition;
 		angle = pangle;
@@ -211,7 +211,7 @@ struct FloorMark
 #define DOUILLE_TYPE_DOUILLE 0
 #define DOUILLE_TYPE_GIB 1
 
-// Nos douilles, ça on gère pas ça sur le net
+// Nos douilles, ï¿½a on gï¿½re pas ï¿½a sur le net
 struct Douille
 {
 	CVector3f position;
@@ -225,7 +225,7 @@ struct Douille
 		vel = pDirection * 1.5f;
 		if (type == DOUILLE_TYPE_DOUILLE)
 		{
-			delay = 2; // Ça dure 2sec ça, en masse
+			delay = 2; // ï¿½a dure 2sec ï¿½a, en masse
 			vel = rotateAboutAxis(vel, rand(-30.0f, 30.0f), right);
 			vel = rotateAboutAxis(vel, rand(0.0f, 360.0f), pDirection);
 		}
@@ -263,13 +263,13 @@ struct Projectile
 	// Son (ses) coordframes
 	CoordFrame currentCF; // Celui qu'on affiche
 	CoordFrame lastCF; // Le key frame de sauvegarde du frame courant
-	CoordFrame netCF0; // L'avant dernier keyframe reçu du net
-	CoordFrame netCF1; // Le dernier keyframe reçu du net
+	CoordFrame netCF0; // L'avant dernier keyframe reï¿½u du net
+	CoordFrame netCF1; // Le dernier keyframe reï¿½u du net
 
 	// Sa progression sur la courbe
 	long cFProgression;
 
-	// Si c'est un entity controllé par le server
+	// Si c'est un entity controllï¿½ par le server
 	bool remoteEntity;
 
 	// On en a fini avec, on l'efface
@@ -279,7 +279,7 @@ struct Projectile
 	bool reallyNeedToBeDeleted;
 
 #ifndef DEDICATED_SERVER
-	// La rocket tourne sur elle même
+	// La rocket tourne sur elle mï¿½me
 	float rotation;
 	float rotateVel;
 
@@ -289,7 +289,7 @@ struct Projectile
 	// Il a une duration limite
 	float duration;
 
-	// Hey, de qui ça vient ça?
+	// Hey, de qui ï¿½a vient ï¿½a?
 	char fromID;
 	bool movementLock;
 
@@ -328,7 +328,7 @@ struct Projectile
 };
 
 
-// Pour tenir nos explosion, ça c'est client OnLy
+// Pour tenir nos explosion, ï¿½a c'est client OnLy
 /*
 struct Explosion
 {
@@ -354,7 +354,7 @@ struct Trail
 	int trailType;
 	CVector4f color;
 	CVector3f right;
-	Trail(CVector3f & pP1, CVector3f & pP2, float pSize, CVector4f & pColor, float duration, int in_trailType=0)
+	Trail(const CVector3f & pP1, const CVector3f & pP2, float pSize, const CVector4f & pColor, float duration, int in_trailType=0)
 	{
 		trailType = in_trailType;
 		dis = distance(pP1, pP2);
@@ -467,10 +467,10 @@ public:
 	// Le seed
 	long mapSeed;
 #ifndef DEDICATED_SERVER
-	// Notre liste de trail à afficher
+	// Notre liste de trail ï¿½ afficher
 	std::vector<Trail*> trails;
 #endif
-	// notre liste de projectile (très important de toujours les garder dans l'ordre
+	// notre liste de projectile (trï¿½s important de toujours les garder dans l'ordre
 	std::vector<Projectile*> projectiles;
 
 #ifndef DEDICATED_SERVER
@@ -483,7 +483,7 @@ public:
 	// Son shadow
 	unsigned int tex_baboShadow;
 
-	// Nos marques sur le plancher (ça c chouette)
+	// Nos marques sur le plancher (ï¿½a c chouette)
 	FloorMark floorMarks[MAX_FLOOR_MARK];
 	long nextWriteFloorMark;
 	Drip drips[MAX_FLOOR_MARK];
@@ -641,7 +641,7 @@ public:
    // Create map
 	void createMap();
 
-	// pour donner un team à un player
+	// pour donner un team ï¿½ un player
 	int assignPlayerTeam(int playerID, char teamRequested, Client * client = 0);
 
 	// let the player join selected team
@@ -669,15 +669,15 @@ public:
 	bool spawnPlayer(int playerID);
 
 	// Pour ajouter un nouveau joueur
-	int createNewPlayerSV(int babonetID); // Ça c'est côté server
+	int createNewPlayerSV(int babonetID); // ï¿½a c'est cï¿½tï¿½ server
 #ifndef DEDICATED_SERVER
-	void createNewPlayerCL(int playerID, long babonetID); // Ça c'est côté client
+	void createNewPlayerCL(int playerID, long babonetID); // ï¿½a c'est cï¿½tï¿½ client
 
 	// Pour quand un client shot
 	void shoot(const CVector3f & position, const CVector3f & direction, float imp, float damage, Player * from, int projectileType);
 #endif
 
-	// Quand un client shot, mais que le server le vérifie puis le shoot aux autres joueurs
+	// Quand un client shot, mais que le server le vï¿½rifie puis le shoot aux autres joueurs
 	void shootSV(net_clsv_player_shoot & playerShoot);
 #ifndef DEDICATED_SERVER
 	// Pour spawner des particules sur le murs l'hors d'un impact
@@ -688,7 +688,7 @@ public:
 #endif
 	void spawnExplosion(CVector3f & position, CVector3f & normal, float size);
 
-	// Pour afficher la minimap (ouff, je mélange pomal les affaires, tk)
+	// Pour afficher la minimap (ouff, je mï¿½lange pomal les affaires, tk)
 	void renderMiniMap();
 
 	// Pour pogner le prochain markFloor

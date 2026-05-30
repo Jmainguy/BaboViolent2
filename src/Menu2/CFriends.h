@@ -23,8 +23,6 @@
 
 #include "CPanel.h"
 
-class CCurl;
-
 class CFriends : public CPanel
 {
 public:
@@ -71,10 +69,6 @@ public:
 	void updatePerso(float delay);
 
 	void updateList();
-
-private:
-	CCurl*	request;
-	bool	requestProcessed;
 };
 
 

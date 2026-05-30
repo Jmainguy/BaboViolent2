@@ -27,7 +27,7 @@
 #include "dki.h"
 
 #if defined(_PRO_)
-#include "Screengrab.h"
+#include "screengrab.h"
 #endif
 
 extern Scene * scene;
@@ -43,6 +43,7 @@ Client::Client(Game * pGame)
 {
 	requestedAdmin = false;
 	wrongVersionReason = false;
+	pendingVersionAccept = false;
 	serverFrameID = 0;
 	font = dkfCreateFont("main/fonts/babo.tga");
 	game = pGame;
@@ -53,16 +54,17 @@ Client::Client(Game * pGame)
 	isChattingTeam = false;
 	isConnected = false;
 	gotGameState = false;
+	server_join_port = 0;
 
 #if defined(_PRO_)
    proServer = false;
 #endif
 
-	m_sfxChat = dksCreateSoundFromFile("main/Sounds/Chat.wav", false);
-	sfxHit = dksCreateSoundFromFile("main/Sounds/Hit.wav", false);
-	sfxShotyReload = dksCreateSoundFromFile("main/Sounds/shotgunReload.wav", false);
-	m_sfxClic = dksCreateSoundFromFile("main/Sounds/Button.wav", false);
-	m_sfxOver = dksCreateSoundFromFile("main/Sounds/ControlOver.wav", false);
+	m_sfxChat = dksCreateSoundFromFile("main/sounds/Chat.wav", false);
+	sfxHit = dksCreateSoundFromFile("main/sounds/Hit.wav", false);
+	sfxShotyReload = dksCreateSoundFromFile("main/sounds/shotgunReload.wav", false);
+	m_sfxClic = dksCreateSoundFromFile("main/sounds/Button.wav", false);
+	m_sfxOver = dksCreateSoundFromFile("main/sounds/ControlOver.wav", false);
 
 	blink = 0;
 	tex_screenHit = dktCreateTextureFromFile("main/textures/screenHit.tga", DKT_FILTER_LINEAR);
@@ -112,7 +114,9 @@ Client::Client(Game * pGame)
 	currentGun = btn_guns[gameVar.cl_primaryWeapon/*0*/];
 	currentMelee = btn_meleeguns[gameVar.cl_secondaryWeapon/*0*/];
 
-	btn_resume->enable = true;
+	// btn_resume is created with the main menu (after intro); command-line join can run earlier.
+	if (btn_resume)
+		btn_resume->enable = true;
 
 	uniqueClientID = 0;
 
@@ -157,7 +161,8 @@ Client::~Client()
 	dktDeleteTexture(&tex_crossHit);
 	dktDeleteTexture(&tex_shotgunLeft);
 
-	btn_resume->enable = false;
+	if (btn_resume)
+		btn_resume->enable = false;
 }
 
 
@@ -172,6 +177,20 @@ void Client::update(float delay)
 
 	if (isRunning)
 	{
+		// Cancel in-flight TCP join without calling scene->disconnect() from inside this object
+		// (render used to call sendCommand("disconnect") during Client::render, which deleted Client mid-frame).
+		if (!isConnected && uniqueClientID != 0)
+		{
+			const bool f10Cancel = (dkiGetState(KeyF10) == DKI_DOWN);
+			const bool escCancel = !console->isActive() && (dkiGetState(KeyEscape) == DKI_DOWN);
+			if (f10Cancel || escCancel)
+			{
+				console->add("\x3> Connection cancelled");
+				needToShutDown = true;
+				return;
+			}
+		}
+
 		if (game)
 		{
 			if (game->voting.votingInProgress && game->thisPlayer)
@@ -255,7 +274,49 @@ void Client::update(float delay)
 
 		// On update le client
 		int result = bb_clientUpdate(uniqueClientID, delay, UPDATE_SEND_RECV);
-		console->debugBBNET(true, false);
+		console->debugBBNET(true, false, (unsigned int)uniqueClientID);
+		if (gameVar.c_netlog)
+		{
+			static unsigned long s_netDbgClient = 0;
+			static int s_netDbgLastResult = 999;
+			static float s_netDbgJoinTick = 0;
+			if (uniqueClientID != s_netDbgClient)
+			{
+				s_netDbgClient = uniqueClientID;
+				s_netDbgLastResult = 999;
+				s_netDbgJoinTick = 0;
+			}
+			if (result != s_netDbgLastResult)
+			{
+				s_netDbgLastResult = result;
+				if (result == 1)
+					console->add(CString("[net] bb_clientUpdate -> 1 ERROR: %s", bb_clientGetLastError(uniqueClientID)));
+				else if (result == 2)
+					console->add(CString("[net] bb_clientUpdate -> 2 (server closed TCP) msg=\"%s\"",
+						bb_clientGetLastMessage(uniqueClientID)));
+				else if (result == 3)
+					console->add("[net] bb_clientUpdate -> 3 (BaboNet TCP + handshake done; game packets can flow)");
+				else if (!isConnected || !gotGameState)
+					console->add(CString("[net] bb_clientUpdate -> %i (0 = still in BaboNet connect/handshake)", result));
+			}
+			if (!isConnected || !gotGameState)
+			{
+				s_netDbgJoinTick += delay;
+				if (s_netDbgJoinTick > 2.f)
+				{
+					s_netDbgJoinTick = 0;
+					{
+						const char* bem = bb_clientGetLastMessage(uniqueClientID);
+						const char* bee = bb_clientGetLastError(uniqueClientID);
+						console->add(CString("[net] join pending target=%s:%i game isConnected=%i gotGameState=%i downloadingMap=%i bb_clientUpdate=%i (0 until BaboNet finishes; 3=link up) msg=\"%s\" err=\"%s\"",
+							server_ip.s, server_join_port,
+							(int)isConnected, (int)gotGameState, (int)isDownloadingMap, result,
+							(bem && bem[0]) ? bem : "",
+							(bee && bee[0]) ? bee : ""));
+					}
+				}
+			}
+		}
 		if (result == 1)
 		{
 			// Une erreur !!! On arr�te tout !!!
@@ -480,9 +541,12 @@ void Client::update(float delay)
 		}
 	}
 
-	// On update le client une derni�re fois
+	// Second network tick (skip if the first pass already detected disconnect/error)
+	if (needToShutDown)
+		return;
+
 	int result = bb_clientUpdate(uniqueClientID, delay, UPDATE_SEND_RECV);
-	console->debugBBNET(true, false);
+	console->debugBBNET(true, false, (unsigned int)uniqueClientID);
 	if (result == 1)
 	{
 		// Une erreur !!! On arr�te tout !!!
@@ -492,12 +556,14 @@ void Client::update(float delay)
 	else if (result == 2)
 	{
 		// Le server a foutu le CAMP !
+		if (gameVar.c_netlog)
+			console->add(CString("[net] bb_clientUpdate (2nd pass) -> 2 msg=\"%s\"", bb_clientGetLastMessage(uniqueClientID)));
 		console->add(CString("\x3> ") + gameVar.lang_serverDisconnected);
 		needToShutDown = true;
 	}
 	else if (result == 3)
 	{
-	//	isConnected = true;
+//	isConnected = true;
 	}
 
 	if (game)
@@ -549,7 +615,8 @@ void Client::Click(CControl * control)
 			teamRequest.teamRequested = PLAYER_TEAM_AUTO_ASSIGN;
 			bb_clientSend(uniqueClientID, (char*)&teamRequest, sizeof(net_clsv_svcl_team_request), NET_CLSV_SVCL_TEAM_REQUEST);
 			showMenu = false;
-			game->map->introAnim = game->map->introAnimLenght;
+			if (game->map)
+				game->map->introAnim = game->map->introAnimLenght;
 		}
 		return;
 	}
@@ -564,7 +631,8 @@ void Client::Click(CControl * control)
 			teamRequest.teamRequested = PLAYER_TEAM_BLUE;
 			bb_clientSend(uniqueClientID, (char*)&teamRequest, sizeof(net_clsv_svcl_team_request), NET_CLSV_SVCL_TEAM_REQUEST);
 			showMenu = false;
-			game->map->introAnim = game->map->introAnimLenght;
+			if (game->map)
+				game->map->introAnim = game->map->introAnimLenght;
 		}
 		return;
 	}
@@ -579,7 +647,8 @@ void Client::Click(CControl * control)
 			teamRequest.teamRequested = PLAYER_TEAM_RED;
 			bb_clientSend(uniqueClientID, (char*)&teamRequest, sizeof(net_clsv_svcl_team_request), NET_CLSV_SVCL_TEAM_REQUEST);
 			showMenu = false;
-			game->map->introAnim = game->map->introAnimLenght;
+			if (game->map)
+				game->map->introAnim = game->map->introAnimLenght;
 		}
 		return;
 	}
@@ -594,7 +663,8 @@ void Client::Click(CControl * control)
 			teamRequest.teamRequested = PLAYER_TEAM_SPECTATOR;
 			bb_clientSend(uniqueClientID, (char*)&teamRequest, sizeof(net_clsv_svcl_team_request), NET_CLSV_SVCL_TEAM_REQUEST);
 			showMenu = false;
-			game->map->introAnim = game->map->introAnimLenght;
+			if (game->map)
+				game->map->introAnim = game->map->introAnimLenght;
 		}
 		return;
 	}
@@ -839,8 +909,15 @@ void Client::onClick(Control * control)
 int Client::join(CString IPAddress, int port, CString password)
 {
 	server_ip = IPAddress;
+	server_join_port = port;
 	m_password = password;
 	m_password.resize(15);
+	// Single local game socket: drop any previous BaboNet client before opening a new one.
+	if (uniqueClientID != 0)
+	{
+		bb_clientDisconnect(uniqueClientID);
+		uniqueClientID = 0;
+	}
 	uniqueClientID = bb_clientConnect(IPAddress.s, port);
 	isRunning = true;
 	return 1;

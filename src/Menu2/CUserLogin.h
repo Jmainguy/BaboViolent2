@@ -26,17 +26,21 @@
 
 class CUserLogin : public CPanel
 {
+private:
+	CString scratchLogin;
+	CString scratchPassword;
+
 public:
-	CControl * parent;
+	CControl * parent = nullptr;
 
 	// Le son pour quand on clic
-	FSOUND_SAMPLE * m_sfxClic;
+	FSOUND_SAMPLE * m_sfxClic = nullptr;
 
 	// Le son pour quand on passe au dessus
-	FSOUND_SAMPLE * m_sfxOver;
+	FSOUND_SAMPLE * m_sfxOver = nullptr;
 
 	// Client options
-	CControl * txt_playerName;
+	CControl * txt_playerName = nullptr;
 
 	// Pour dessiner notre sphere
 #ifndef _DX_
@@ -44,58 +48,58 @@ public:
 #endif
 
 	// Son shadow
-	unsigned int tex_baboShadow;
-	unsigned int tex_skin;
-	unsigned int tex_skinOriginal;
+	unsigned int tex_baboShadow = 0;
+	unsigned int tex_skin = 0;
+	unsigned int tex_skinOriginal = 0;
 
-	float rollingAngle;
+	float rollingAngle = 0.f;
 
 	//--- we have 2 possible view
-	CControl * pnl_login;
+	CControl * pnl_login = nullptr;
 
 		//--- Text field
-		CControl * txt_userName;
-		CControl * txt_password;
+		CControl * txt_userName = nullptr;
+		CControl * txt_password = nullptr;
 
 		//--- Some controls (Login and create acount)
-		CControl * btn_login;
-		CControl * btn_createAccount;
+		CControl * btn_login = nullptr;
+		CControl * btn_createAccount = nullptr;
 
 	//--- The stats panel
-	CControl * pnl_stats;
+	CControl * pnl_stats = nullptr;
 	
-		//--- Le render zone où on va dessiner notre babo yea poupé
-		CControl * pic_babo;
+		//--- Le render zone oï¿½ on va dessiner notre babo yea poupï¿½
+		CControl * pic_babo = nullptr;
 
 		//--- To choose babo color
-		CControl * sld_layer1_r;
-		CControl * sld_layer1_g;
-		CControl * sld_layer1_b;
+		CControl * sld_layer1_r = nullptr;
+		CControl * sld_layer1_g = nullptr;
+		CControl * sld_layer1_b = nullptr;
 
-		CControl * sld_layer2_r;
-		CControl * sld_layer2_g;
-		CControl * sld_layer2_b;
+		CControl * sld_layer2_r = nullptr;
+		CControl * sld_layer2_g = nullptr;
+		CControl * sld_layer2_b = nullptr;
 
-		CControl * sld_layer3_r;
-		CControl * sld_layer3_g;
-		CControl * sld_layer3_b;
+		CControl * sld_layer3_r = nullptr;
+		CControl * sld_layer3_g = nullptr;
+		CControl * sld_layer3_b = nullptr;
 
 		//--- His skin
-		CControl * sld_skin;
+		CControl * sld_skin = nullptr;
 
 		//--- His medals
-		unsigned long m_medals;
-		CControl * pic_medals[32];
+		unsigned long m_medals = 0;
+		CControl * pic_medals[32]{};
 
 		//--- Other stats
-		CControl * lbl_honor;
-		CControl * lbl_xp;
-		CControl * lbl_leftToNextLevel;
-		CControl * lbl_totalKill;
-		CControl * lbl_totalDeath;
-		CControl * lbl_ratio;
-		CControl * lbl_killWeapon[20];
-		CControl * lbl_weaponOfChoice;
+		CControl * lbl_honor = nullptr;
+		CControl * lbl_xp = nullptr;
+		CControl * lbl_leftToNextLevel = nullptr;
+		CControl * lbl_totalKill = nullptr;
+		CControl * lbl_totalDeath = nullptr;
+		CControl * lbl_ratio = nullptr;
+		CControl * lbl_killWeapon[20]{};
+		CControl * lbl_weaponOfChoice = nullptr;
 
 public:
 	CUserLogin(CControl * in_parent, CControl * in_alignTo);
@@ -110,7 +114,7 @@ public:
 	void Validate(CControl * control);
 	void Paint(CControl * control);
 
-	int updateSkinInt;
+	int updateSkinInt = 0;
 
 	void updatePerso(float delay)
 	{

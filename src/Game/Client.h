@@ -35,11 +35,11 @@
 #include "CListener.h"
 
 
-// Nos message qu'on affiche à l'écran
+// Nos message qu'on affiche ï¿½ l'ï¿½cran
 struct TimedMessage
 {
 	CString message;
-	float duration; // Sa vie quil lui reste, on laisse les message 10sec ( si sont rendu trop haut, on les force à closer )
+	float duration; // Sa vie quil lui reste, on laisse les message 10sec ( si sont rendu trop haut, on les force ï¿½ closer )
 	TimedMessage(CString pMessage)
 	{
 		duration = 10;
@@ -75,7 +75,7 @@ public:
 	bool isDownloadingMap;
 
 	float timeSinseLastQMsg;
-	// Les messages chat ou events à printer à l'écran
+	// Les messages chat ou events ï¿½ printer ï¿½ l'ï¿½cran
 	std::vector<TimedMessage> chatMessages;
 	std::vector<TimedMessage> eventMessages;
 
@@ -89,13 +89,17 @@ public:
 	bool needToShutDown;
 	bool wrongVersionReason;
 
+	// NET_SVCL_GAMEVERSION arrived before NET_SVCL_NEWPLAYER; send PLAYER_INFO after slot exists.
+	bool pendingVersionAccept;
+
 	// Si on montre le menu
 	bool showMenu;
 
-	// Si on est connecté
+	// Si on est connectï¿½
 	bool isConnected;
 
 	CString server_ip;
+	int server_join_port;
 
 	CControl * clientRoot;
 
@@ -120,7 +124,7 @@ public:
 	// Si il cohabite avec un server
 	bool isServer;
 
-	// Quand on écris
+	// Quand on ï¿½cris
 	Writting chatting;
 	bool isChattingTeam;
 
@@ -135,7 +139,7 @@ public:
 	// Le hit indicator
 	float hitIndicator;
 
-	// Quand on se fait toucher, l'écran devient rouge
+	// Quand on se fait toucher, l'ï¿½cran devient rouge
 	unsigned int tex_screenHit;
 	unsigned int tex_grenadeLeft;
 	unsigned int tex_shotgunLeft;
@@ -144,7 +148,7 @@ public:
 	unsigned int tex_redFlag;
 	unsigned int tex_crossHit;
 
-	// Il a reçu le gamestate
+	// Il a reï¿½u le gamestate
 	bool gotGameState;
 
 	long serverFrameID;
@@ -175,7 +179,7 @@ public:
 	// Pour printer un chat message
 	void printMessage(CString message);
 
-	// On a reçu un message yéé !
+	// On a reï¿½u un message yï¿½ï¿½ !
 	void recvPacket(char * buffer, int typeID);
 
 	void MouseEnter(CControl * control);

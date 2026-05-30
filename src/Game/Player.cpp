@@ -270,6 +270,11 @@ void Player::kill(bool silenceDeath)
 #endif
 
 	// Si il avait le flag, on le laisse tomber
+	if (!game || !game->map)
+	{
+		currentCF.position.set(-999,-999,0);
+		return;
+	}
 	for (int i=0;i<2;++i)
 	{
 		if (game->map->flagState[i] == playerID)
@@ -860,7 +865,9 @@ void Player::spawn(const CVector3f & spawnPoint)
 
 	//--- Si c'est nous on force la camera dessus
 #ifndef DEDICATED_SERVER
-	if (isThisPlayer) map->setCameraPos(spawnPoint);
+	Map* activeMap = map ? map : (game ? game->map : 0);
+	if (isThisPlayer && activeMap)
+		activeMap->setCameraPos(spawnPoint);
 
 	if (!game->isServerGame)
 	{

@@ -137,16 +137,15 @@ int cIncConnection::Update()
 
 						char buf[37]; //conn data(5) + md5 junk(28) + hidden packetid at end(4)
 
-						memcpy(buf,&ID,sizeof(UINT4));
-						memcpy(buf + sizeof(UINT4),&udp,sizeof(char));
-						memcpy(buf + sizeof(UINT4) + sizeof(char),&junk,sizeof(char) * 32);
+						memcpy(buf, &ID, 4);
+						memcpy(buf + 4, &udp, 1);
+						memcpy(buf + 5, &junk, 32);
 
-						//random starting packetID
+						//random starting packetID (4 bytes on wire)
 						srand((unsigned int)(time(0)));
-						Pid = rand() % 32000;
-						memcpy(buf + sizeof(UINT4) + sizeof(char) + sizeof(char) * 28,&Pid,sizeof(UINT4));
-
-						memcpy( &Pid , &(buf[33]) , sizeof(UINT4) );
+						unsigned int wirePid = (unsigned int)(rand() % 32000);
+						memcpy(buf + 33, &wirePid, 4);
+						memcpy(&Pid, buf + 33, 4);
 
 						while(sent < 37)
 						{

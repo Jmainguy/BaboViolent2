@@ -204,7 +204,7 @@ void dkglEnableVsync(bool vsync)
 }
 
 //
-// Pour vérifier une extension de la carte
+// Pour vï¿½rifier une extension de la carte
 //
 bool dkglCheckExtension(char * extension)
 {
@@ -213,7 +213,7 @@ bool dkglCheckExtension(char * extension)
 
 
 //
-// Pour créer le context openGL (rendering context)
+// Pour crï¿½er le context openGL (rendering context)
 //
 int dkglCreateContext(SDL_GLContext mDC, int colorDepth)
 {
@@ -222,7 +222,7 @@ int dkglCreateContext(SDL_GLContext mDC, int colorDepth)
 }
 
 //
-// Pour dessiner le system de coordonnée
+// Pour dessiner le system de coordonnï¿½e
 //
 void dkglDrawCoordSystem()
 {
@@ -392,7 +392,7 @@ void dkglSetBlendingFunc(int blending)
 
 
 //
-// Pour rapidement créer une lumière dans votre scene (très basic)
+// Pour rapidement crï¿½er une lumiï¿½re dans votre scene (trï¿½s basic)
 //
 void dkglSetPointLight(int ID, float x, float y, float z, float r, float g, float b)
 {
@@ -414,15 +414,15 @@ void dkglSetPointLight(int ID, float x, float y, float z, float r, float g, floa
 
 
 //
-// On set la vue de la perspective là
+// On set la vue de la perspective lï¿½
 //
 void dkglSetProjection(float mFieldOfView, float mNear, float mFar, float mWidth, float mHeight)
 {
 #ifndef _DX_
-	// On met la matrice de projection pour ce créer une vue perspective
+	// On met la matrice de projection pour ce crï¿½er une vue perspective
 	glMatrixMode(GL_PROJECTION);
 
-	// On remet cette matrice à identity
+	// On remet cette matrice ï¿½ identity
 	glLoadIdentity();
 
 	// On ajuste la matrice de projection
@@ -433,7 +433,7 @@ void dkglSetProjection(float mFieldOfView, float mNear, float mFar, float mWidth
 	// On remet cette de model view (qui est celle de la position et l'orientation)
 	glMatrixMode(GL_MODELVIEW);
 
-	// La model view à identity
+	// La model view ï¿½ identity
 	glLoadIdentity();
 #endif
 }
@@ -735,7 +735,7 @@ int glhInvertMatrixf2(float *m, float *out)
 }
 
 //
-// Pour bien fermer tout ça
+// Pour bien fermer tout ï¿½a
 //
 void dkglShutDown()
 {
@@ -772,7 +772,7 @@ CVector3f dkglUnProject(CVector2i & pos2D, float zRange)
 }
 
 
-CVector3f dkglProject(CVector3f & pos3D)
+CVector3f dkglProject(const CVector3f & pos3D)
 {
     float v[3];
 #ifndef _DX_

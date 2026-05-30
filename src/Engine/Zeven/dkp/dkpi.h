@@ -138,9 +138,9 @@ DLL_API void			dkpCreateParticle(	float *position,
 											unsigned int srcBlend,
 											unsigned int dstBlend,
 											int transitionFunc);
-DLL_API void			dkpCreateParticleEx(CVector3f & positionFrom,
-											CVector3f & positionTo,
-											CVector3f & direction,
+DLL_API void			dkpCreateParticleEx(const CVector3f & positionFrom,
+											const CVector3f & positionTo,
+											const CVector3f & direction,
 											float speedFrom,
 											float speedTo,
 											float pitchFrom,
@@ -151,10 +151,10 @@ DLL_API void			dkpCreateParticleEx(CVector3f & positionFrom,
 											float endSizeTo,
 											float durationFrom,
 											float durationTo,
-											CColor4f & startColorFrom,
-											CColor4f & startColorTo,
-											CColor4f & endColorFrom,
-											CColor4f & endColorTo,
+											const CColor4f & startColorFrom,
+											const CColor4f & startColorTo,
+											const CColor4f & endColorFrom,
+											const CColor4f & endColorTo,
 											float angleFrom,
 											float angleTo,
 											float angleSpeedFrom,
@@ -183,10 +183,10 @@ DLL_API int				dkpUpdate(float delay);
 class CDkp
 {
 public:
-	// La liste de toute les particles ouais poupé
+	// La liste de toute les particles ouais poupï¿½
 	static std::vector<CParticle*> particles;
 
-	// La gravité
+	// La gravitï¿½
 	static CVector3f gravity;
 
 	// Le delay
@@ -206,13 +206,13 @@ public:
 
 	static unsigned int lastTexture;
 
-	// La densité de l'air (en kPa)
+	// La densitï¿½ de l'air (en kPa)
 	static float airDensity;
 
 	// Si on doit les sorter ou pas
 	static bool sorting;
 
-	// Pour sorter où on est rendu
+	// Pour sorter oï¿½ on est rendu
 	static std::vector<CParticle*>::size_type currentSortInteration;
 
 public:

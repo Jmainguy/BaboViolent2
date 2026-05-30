@@ -80,8 +80,8 @@ int dkiGetState(int inputID)
 {
     int r = DKI_NOTHING;
 
-	if(inputID != DKI_NOKEY)
-	  r = allState[inputID];
+	if (inputID != DKI_NOKEY && inputID >= 0 && inputID < (int)(sizeof(allState) / sizeof(allState[0])))
+		r = allState[inputID];
 
 	return r;
 }

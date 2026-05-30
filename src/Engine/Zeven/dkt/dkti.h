@@ -29,8 +29,9 @@
 
 //#pragma comment( lib, "DevIL.lib" )
 
-
+#ifdef WIN32
 #include <windows.h>
+#endif
 
 // Les includes pour opengl
 
@@ -59,10 +60,10 @@ public:
 	// La date de modification du fichier
 	INT4 modifDate;
 
-	// Sa résolution
+	// Sa rï¿½solution
 	CVector2i size;
 
-	// Le nombre de fois quelle a été loadé
+	// Le nombre de fois quelle a ï¿½tï¿½ loadï¿½
 	int nbInstance;
 
 	// Le nombre de Byte per pixel de la texture
@@ -91,10 +92,10 @@ public:
 class CDkt
 {
 public:
-	// Pour tenir la dernière erreur
+	// Pour tenir la derniï¿½re erreur
 	static char *lastErrorString;
 
-	// Le vector de nos textures initialisé
+	// Le vector de nos textures initialisï¿½
 	static std::vector<CTexture*> textures;
 
 	// La texture qu'on check pour le auto updating

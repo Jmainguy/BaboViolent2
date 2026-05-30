@@ -19,17 +19,17 @@
 /// \brief Module de gestion d'OpenGL
 ///
 /// \file dkgl.h
-/// Ce module prend en charge la gestion d'un contexte OpenGL et offre plusieurs fonctions utilitaires lui étant rattaché. Ceci comprend :
-/// 	- une fonction de création d'un contexte OpenGL
+/// Ce module prend en charge la gestion d'un contexte OpenGL et offre plusieurs fonctions utilitaires lui ï¿½tant rattachï¿½. Ceci comprend :
+/// 	- une fonction de crï¿½ation d'un contexte OpenGL
 /// 	- une fonction de terminaison d'utilisation du module
-/// 	- une fonction de permettant de vérifier le support d'extensions d'OpenGL
-/// 	- des fonctions permettant de changer la façon dont l'environnement 3D est transféré sur une surface 2D (vue de perspective ou orthogonale)
+/// 	- une fonction de permettant de vï¿½rifier le support d'extensions d'OpenGL
+/// 	- des fonctions permettant de changer la faï¿½on dont l'environnement 3D est transfï¿½rï¿½ sur une surface 2D (vue de perspective ou orthogonale)
 /// 	- diverses autres fonctions utilitaires
 ///
-/// Le contexte OpenGL est une structure de donnée utilisé par OpenGL qui contient une instance de cette librairie graphique.
+/// Le contexte OpenGL est une structure de donnï¿½e utilisï¿½ par OpenGL qui contient une instance de cette librairie graphique.
 ///
 /// \author David St-Louis (alias Daivuk)
-/// \author Louis Poirier (à des fins de documentation seulement)
+/// \author Louis Poirier (ï¿½ des fins de documentation seulement)
 ///
 
 
@@ -43,15 +43,15 @@
 
 
 /// \name BlendingPreset
-/// Drapeaux représentant chacun une configuration de coefficients de mélange de couleurs d'un pixel source et d'un pixel destination fréquemment utilisées. Voir DKP pour plus de détails sur le mélange de couleur (blending)
+/// Drapeaux reprï¿½sentant chacun une configuration de coefficients de mï¿½lange de couleurs d'un pixel source et d'un pixel destination frï¿½quemment utilisï¿½es. Voir DKP pour plus de dï¿½tails sur le mï¿½lange de couleur (blending)
 //@{
-/// représente la paire de coefficients (source, destination) : (GL_ONE, GL_ONE)
+/// reprï¿½sente la paire de coefficients (source, destination) : (GL_ONE, GL_ONE)
 const int DKGL_BLENDING_ADD_SATURATE = 0;
-/// représente la paire de coefficients (source, destination) : (GL_SRC_ALPHA, GL_ONE)
+/// reprï¿½sente la paire de coefficients (source, destination) : (GL_SRC_ALPHA, GL_ONE)
 const int DKGL_BLENDING_ADD = 3;
-/// représente la paire de coefficients (source, destination) : (GL_DST_COLOR, GL_ZERO)
+/// reprï¿½sente la paire de coefficients (source, destination) : (GL_DST_COLOR, GL_ZERO)
 const int DKGL_BLENDING_MULTIPLY = 1;
-/// représente la paire de coefficients (source, destination) : (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+/// reprï¿½sente la paire de coefficients (source, destination) : (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 const int DKGL_BLENDING_ALPHA = 2;
 //@}
 
@@ -59,30 +59,30 @@ const int DKGL_BLENDING_ALPHA = 2;
 // Les fonction du DKG
 
 
-/// \brief vérifie la présence d'une extension d'OpenGL supportée par la carte vidéo
+/// \brief vï¿½rifie la prï¿½sence d'une extension d'OpenGL supportï¿½e par la carte vidï¿½o
 ///
-/// Cette fonction vérifie la présence d'une extension d'OpenGL supportée par la carte vidéo.
+/// Cette fonction vï¿½rifie la prï¿½sence d'une extension d'OpenGL supportï¿½e par la carte vidï¿½o.
 ///
 /// \param extension nom de l'extension
-/// \return true si elle est supportée, false sinon
+/// \return true si elle est supportï¿½e, false sinon
 bool			dkglCheckExtension(char * extension);
 
 
 
-/// \brief crée un contexte OpenGL
+/// \brief crï¿½e un contexte OpenGL
 ///
-/// Cette fonction crée un contexte OpenGL essentiel au rendu. Elle doit être appelé avant tout autres appels à des fonctions de ce module ou d'OpenGL.
+/// Cette fonction crï¿½e un contexte OpenGL essentiel au rendu. Elle doit ï¿½tre appelï¿½ avant tout autres appels ï¿½ des fonctions de ce module ou d'OpenGL.
 ///
-/// \param mDC Device Context de la fenêtre Windows
+/// \param mDC Device Context de la fenï¿½tre Windows
 /// \param colorDepth nombre de bit utiliser pour chaque composant de couleur d'un pixel (16 ou 32.....donc 32)
-/// \return true si la création du contexte a réussi, false sinon
+/// \return true si la crï¿½ation du contexte a rï¿½ussi, false sinon
 int				 dkglCreateContext(SDL_GLContext mDC, int colorDepth);
 
 
 
-/// \brief dessine le repère vectoriel de la scène à l'origine
+/// \brief dessine le repï¿½re vectoriel de la scï¿½ne ï¿½ l'origine
 ///
-/// Cette fonction dessine le repère vectoriel de la scène à l'origine. Le repère vectoriel est constitué de 3 vecteurs tous perpendiculaire l'un par rapport à l'autre.
+/// Cette fonction dessine le repï¿½re vectoriel de la scï¿½ne ï¿½ l'origine. Le repï¿½re vectoriel est constituï¿½ de 3 vecteurs tous perpendiculaire l'un par rapport ï¿½ l'autre.
 ///
 void			dkglDrawCoordSystem();
 
@@ -98,7 +98,7 @@ void			dkglDrawWireCube();
 
 /// \brief permet de revenir en mode de rendu en perspective
 ///
-/// Cette fonction de passer du mode de rendu orthographique (surtout utilisé pour dessiner en 2D sur l'écran ou pour conserver le rapport des mesures comme dans les applications CAD) au mode de rendu en perspective 3D.
+/// Cette fonction de passer du mode de rendu orthographique (surtout utilisï¿½ pour dessiner en 2D sur l'ï¿½cran ou pour conserver le rapport des mesures comme dans les applications CAD) au mode de rendu en perspective 3D.
 ///
 void			dkglPopOrtho();
 
@@ -106,7 +106,7 @@ void			dkglPopOrtho();
 
 /// \brief permet de passer en mode de rendu orthographique
 ///
-/// Cette fonction passer du mode de rendu en perspective 3D au mode de rendu orthographique possédant une certaine dimension de rendu.
+/// Cette fonction passer du mode de rendu en perspective 3D au mode de rendu orthographique possï¿½dant une certaine dimension de rendu.
 ///
 /// \param mWidth dimension en pixel du mode de rendu orthographique
 /// \param mHeight dimension en pixel du mode de rendu orthographique
@@ -114,11 +114,11 @@ void			dkglPushOrtho(float mWidth, float mHeight);
 
 
 
-/// \brief permet de spécifier la fonction de mélange de couleur qui est active
+/// \brief permet de spï¿½cifier la fonction de mï¿½lange de couleur qui est active
 ///
-/// Cette fonction permet de spécifier la fonction de mélange de couleur(blending) qui est active en passant un des 4 drapeaux BlendingPreset en paramètre
+/// Cette fonction permet de spï¿½cifier la fonction de mï¿½lange de couleur(blending) qui est active en passant un des 4 drapeaux BlendingPreset en paramï¿½tre
 ///
-/// \param blending drapeau BlendingPreset qui défini une fonction de mélange de couleur(blending)
+/// \param blending drapeau BlendingPreset qui dï¿½fini une fonction de mï¿½lange de couleur(blending)
 void			dkglSetBlendingFunc(int blending);
 
 
@@ -126,41 +126,41 @@ void			dkglSetBlendingFunc(int blending);
 void			dkglEnableVsync(bool enabled = true);
 
 
-/// \brief active une lumière OpenGL
+/// \brief active une lumiï¿½re OpenGL
 ///
-/// Cette fonction active une des 8 lumières qu'OpenGL offre avec les spécificités suivantes :
+/// Cette fonction active une des 8 lumiï¿½res qu'OpenGL offre avec les spï¿½cificitï¿½s suivantes :
 /// 	- position = {x,y,z,1}
 /// 	- couleur ambiente = {r/4,g/4,b/4,1}
 /// 	- couleur diffuse = {r,g,b,1}
-/// 	- couleur spéculaire = {r,g,b,1}
+/// 	- couleur spï¿½culaire = {r,g,b,1}
 ///
-/// \param ID Identifiant unique de la lumière (de 0 à 7)
-/// \param x position de la lumière
-/// \param y position de la lumière
-/// \param z position de la lumière
-/// \param r couleur de la lumière
-/// \param g couleur de la lumière
-/// \param b couleur de la lumière
+/// \param ID Identifiant unique de la lumiï¿½re (de 0 ï¿½ 7)
+/// \param x position de la lumiï¿½re
+/// \param y position de la lumiï¿½re
+/// \param z position de la lumiï¿½re
+/// \param r couleur de la lumiï¿½re
+/// \param g couleur de la lumiï¿½re
+/// \param b couleur de la lumiï¿½re
 void			dkglSetPointLight(int ID, float x, float y, float z, float r, float g, float b);
 
 
 
-/// \brief spécifie et active un mode de rendu en perspective
+/// \brief spï¿½cifie et active un mode de rendu en perspective
 ///
-/// Cette fonction spécifie et active un mode de rendu en perspective.
+/// Cette fonction spï¿½cifie et active un mode de rendu en perspective.
 ///
-/// \param mFieldOfView angle de vue vertical en degrés
-/// \param mNear distance la plus proche de la caméra pouvant posséder un rendu
-/// \param mFar distance la plus éloignée de la caméra pouvant posséder un rendu
-/// \param mWidth largeur de la fenètre (unité arbitraire, seul le ratio mWidth/mHeight importe vraiment)
-/// \param mHeight hauteur de la fenètre (unité arbitraire)
+/// \param mFieldOfView angle de vue vertical en degrï¿½s
+/// \param mNear distance la plus proche de la camï¿½ra pouvant possï¿½der un rendu
+/// \param mFar distance la plus ï¿½loignï¿½e de la camï¿½ra pouvant possï¿½der un rendu
+/// \param mWidth largeur de la fenï¿½tre (unitï¿½ arbitraire, seul le ratio mWidth/mHeight importe vraiment)
+/// \param mHeight hauteur de la fenï¿½tre (unitï¿½ arbitraire)
 void			dkglSetProjection(float mFieldOfView, float mNear, float mFar, float mWidth, float mHeight);
 
 
 
-/// \brief détruit le contexte OpenGL précédemment créé
+/// \brief dï¿½truit le contexte OpenGL prï¿½cï¿½demment crï¿½ï¿½
 ///
-/// Cette fonction détruit le contexte OpenGL précédemment créé. Après l'appel, un nouvel appel à dkglCreateContext() devra être fait avant tout autres appels de fonctions de ce module ainsi que de fonctions provenant d'OpenGL.
+/// Cette fonction dï¿½truit le contexte OpenGL prï¿½cï¿½demment crï¿½ï¿½. Aprï¿½s l'appel, un nouvel appel ï¿½ dkglCreateContext() devra ï¿½tre fait avant tout autres appels de fonctions de ce module ainsi que de fonctions provenant d'OpenGL.
 ///
 void			dkglShutDown();
 
@@ -168,15 +168,15 @@ void			dkglShutDown();
 
 /// \brief transforme la position de la souris 2D en un vecteur 3D
 ///
-/// Cette fonction permet de faire correspondre la position de la souris et une certaine valeur entre [0,1] à un vecteur 3D. Le vecteur est simplement construit en prenant la position de la souris et en y ajoutant zRange (z,y,zRange) et en y soustrayant la position de la caméra.
-/// On obtient alors un vecteur que l'on multiplie par la valeur de profondeur la plus éloigné de la caméra pouvant posséder un rendu. C'est ce nouveau vecteur qui est retourné.
+/// Cette fonction permet de faire correspondre la position de la souris et une certaine valeur entre [0,1] ï¿½ un vecteur 3D. Le vecteur est simplement construit en prenant la position de la souris et en y ajoutant zRange (z,y,zRange) et en y soustrayant la position de la camï¿½ra.
+/// On obtient alors un vecteur que l'on multiplie par la valeur de profondeur la plus ï¿½loignï¿½ de la camï¿½ra pouvant possï¿½der un rendu. C'est ce nouveau vecteur qui est retournï¿½.
 ///
-/// \param pos2D position de la souris à l'écran en pixel
-/// \param zRange profondeur désirée (entre 0 et 1)
-/// \return le nouveau vecteur représentant correspondant à la position de la souris en 3D à une certaine profondeur.
+/// \param pos2D position de la souris ï¿½ l'ï¿½cran en pixel
+/// \param zRange profondeur dï¿½sirï¿½e (entre 0 et 1)
+/// \return le nouveau vecteur reprï¿½sentant correspondant ï¿½ la position de la souris en 3D ï¿½ une certaine profondeur.
 CVector3f		dkglUnProject(CVector2i & pos2D, float zRange);
 
-CVector3f		dkglProject(CVector3f & pos3D);
+CVector3f		dkglProject(const CVector3f & pos3D);
 
 
 void gluLookAt(

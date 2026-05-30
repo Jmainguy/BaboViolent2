@@ -30,28 +30,34 @@ GameVar gameVar;
 // function to fetch db infos, version and web url
 void FetchDBInfos()
 {
-	sqlite3* db=0;
-	sqlite3_open("./bv2.db",&db);
+	sqlite3 *db = 0;
+	if (sqlite3_open("./bv2.db", &db) != SQLITE_OK)
+	{
+		if (db)
+			sqlite3_close(db);
+		return;
+	}
 
-	//some infos to load the data
-	char	*zErrMsg;		// holds error msg if any
-	char	**azResult;		// contains the actual returned data
-	int	nRow;			// number of record
-	int	nColumn;		// number of column
-	char	SQL[256];		// the query
+	char *zErrMsg = 0;
+	char **azResult = 0;
+	int nRow = 0;
+	int nColumn = 0;
+	char SQL[256];
 
-	sprintf(SQL,"Select Value From LauncherSettings Where Name = 'DBVersion';");
-	sqlite3_get_table(db,SQL,&azResult,&nRow,&nColumn,&zErrMsg);
-
-	gameVar.db_version = atoi(azResult[1]);
+	sprintf(SQL, "Select Value From LauncherSettings Where Name = 'DBVersion';");
+	int rc = sqlite3_get_table(db, SQL, &azResult, &nRow, &nColumn, &zErrMsg);
+	if (rc == SQLITE_OK && azResult != NULL && nRow >= 1 && nColumn >= 1 && azResult[nColumn] != NULL)
+		gameVar.db_version = atoi(azResult[nColumn]);
+	if (zErrMsg)
+	{
+		sqlite3_free(zErrMsg);
+		zErrMsg = 0;
+	}
 	sqlite3_free_table(azResult);
+	azResult = 0;
 
-	sprintf(SQL,"Select Value From LauncherSettings Where Name = 'AccountURL';");
-	sqlite3_get_table(db,SQL,&azResult,&nRow,&nColumn,&zErrMsg);
+	// AccountURL from local DB is ignored (anonymous default; no ladder URL from sqlite).
 
-	gameVar.db_accountServer = CString( azResult[1] );
-
-	sqlite3_free_table(azResult);
 	sqlite3_close(db);
 }
 
@@ -552,16 +558,9 @@ GameVar::GameVar()
 	sv_spawnImmunityTime = 2.0f;
 	dksvarRegister(CString("sv_spawnImmunityTime [float : 0 to 3 (default 2.0)]"), &sv_spawnImmunityTime, 0, 3, LIMIT_MIN | LIMIT_MAX, true);
 	
-	db_accountServer = "http://ladder.rndlabs.ca/bv2link.php";
 	db_version = 0;
 	FetchDBInfos();
 
-//	dksvarRegister(CString("cl_accountServer [string : \"URL\"]", cl_accountServer.s), &cl_accountServer, true);
-
-	cl_accountUsername = "";
-	dksvarRegister(CString("cl_accountUsername [string : \"\" (default \"\")]"), &cl_accountUsername, true);
-	cl_accountPassword = "";
-	dksvarRegister(CString("cl_accountPassword [string : \"\" (default \"\")]"), &cl_accountPassword, true);
 	cl_playerName = "Unnamed Babo";
 	dksvarRegister(CString("cl_playerName [string : \"\" (default \"Unnamed Babo\")]"), &cl_playerName, true);
 	cl_mapAuthorName = "";
@@ -777,6 +776,12 @@ GameVar::GameVar()
 	c_debug = false; // Default
 	dksvarRegister(CString("c_debug [bool : true | false (default false)]"), &c_debug, true);
 
+	c_netlog = false;
+	dksvarRegister(CString("c_netlog [bool : true | false (default false)] - join/TCP [net] logs (client + dedicated console). After main/bv2.cfg load, env BV2_NETLOG=1 forces this on."), &c_netlog, true);
+
+	c_stdoutlog = false;
+	dksvarRegister(CString("c_stdoutlog [bool : true | false (default false)] - mirror console lines to stdout (graphical client). Env BV2_STDOUT_LOG=1 forces this on."), &c_stdoutlog, true);
+
 	c_huge = false;
 	dksvarRegister(CString("c_huge [bool : true | false (default false)]"), &c_huge, true);
 	d_showPath = false;
@@ -802,6 +807,41 @@ GameVar::~GameVar()
 	langs.clear();
 #endif
 }
+
+#ifndef DEDICATED_SERVER
+void GameVar::repairKeyBindings()
+{
+	if (k_moveUp < 0) k_moveUp = keyManager.getKeyByName("W");
+	if (k_moveDown < 0) k_moveDown = keyManager.getKeyByName("S");
+	if (k_moveRight < 0) k_moveRight = keyManager.getKeyByName("D");
+	if (k_moveLeft < 0) k_moveLeft = keyManager.getKeyByName("A");
+	if (k_shoot < 0) k_shoot = keyManager.getKeyByName("Mouse1");
+	if (k_throwGrenade < 0) k_throwGrenade = keyManager.getKeyByName("Mouse2");
+	if (k_throwMolotov < 0) k_throwMolotov = keyManager.getKeyByName("Mouse3");
+	if (k_pickUp < 0) k_pickUp = keyManager.getKeyByName("F");
+	if (k_chatAll < 0) k_chatAll = keyManager.getKeyByName("T");
+	if (k_chatTeam < 0) k_chatTeam = keyManager.getKeyByName("Y");
+	if (k_showScore < 0) k_showScore = keyManager.getKeyByName("TAB");
+	if (k_menuAccess < 0) k_menuAccess = keyManager.getKeyByName("Escape");
+	if (k_melee < 0) k_melee = keyManager.getKeyByName("Space");
+#if defined(_PRO_)
+	if (k_screenShot < 0) k_screenShot = keyManager.getKeyByName("P");
+	if (k_stats < 0) k_stats = keyManager.getKeyByName("L");
+#endif
+#ifndef DISABLE_QUICK_MESSAGES
+	if (k_qMsg01 < 0) k_qMsg01 = keyManager.getKeyByName("1");
+	if (k_qMsg02 < 0) k_qMsg02 = keyManager.getKeyByName("2");
+	if (k_qMsg03 < 0) k_qMsg03 = keyManager.getKeyByName("3");
+	if (k_qMsg04 < 0) k_qMsg04 = keyManager.getKeyByName("4");
+	if (k_qMsg05 < 0) k_qMsg05 = keyManager.getKeyByName("5");
+	if (k_qMsg06 < 0) k_qMsg06 = keyManager.getKeyByName("6");
+	if (k_qMsg07 < 0) k_qMsg07 = keyManager.getKeyByName("7");
+	if (k_qMsg08 < 0) k_qMsg08 = keyManager.getKeyByName("8");
+	if (k_qMsg09 < 0) k_qMsg09 = keyManager.getKeyByName("9");
+	if (k_qMsg10 < 0) k_qMsg10 = keyManager.getKeyByName("0");
+#endif
+}
+#endif
 
 
 
@@ -1091,6 +1131,8 @@ void GameVar::loadModels()
 	tex_medals[10] = dktCreateTextureFromFile("main/textures/medals/Medal11.tga", DKT_FILTER_LINEAR);
 	tex_drip = dktCreateTextureFromFile("main/textures/drip.tga", DKT_FILTER_LINEAR);
 	tex_sky = dktCreateTextureFromFile("main/textures/sky.tga", DKT_FILTER_LINEAR);
+	if (!tex_sky)
+		tex_sky = dktCreateEmptyTexture(1, 1, 3, DKT_FILTER_LINEAR);
 	tex_glowTrail = dktCreateTextureFromFile("main/textures/glowTrail.tga", DKT_FILTER_LINEAR);
 	
 	sfx_ric[0] = dksCreateSoundFromFile("main/sounds/ric1.wav", false);

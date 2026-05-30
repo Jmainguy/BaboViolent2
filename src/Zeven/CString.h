@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <cstring>
 
 #ifndef WIN32
 	#include "LinuxHeader.h"
@@ -151,12 +152,21 @@ public:
 	///Copier �partir d'un pointeur
 	void operator=(const char* string)
 	{
-		if(this->s != string)
+		if (!string)
 		{
 			delete [] s;
-			s = new char[strlen(string)+1];
-			strcpy(s, string);
+			s = new char[1];
+			s[0] = '\0';
+			return;
 		}
+		if (this->s == string)
+			return;
+		// Copy before delete: `string` may point inside this->s (e.g. dksvar updateString).
+		const size_t n = strlen(string);
+		char *copy = new char[n + 1];
+		std::memcpy(copy, string, n + 1);
+		delete [] s;
+		s = copy;
 	}
 	///Copier �partir de l'adresse de l'objet
 	void operator=(const CString &objToCopy)

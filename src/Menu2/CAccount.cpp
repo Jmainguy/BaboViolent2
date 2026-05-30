@@ -43,12 +43,12 @@ CAccount::CAccount(CControl * in_parent, CControl * in_alignTo)
 	CControl * label1 = new CControl(instance, CVector2i(10,20), CVector2i(90,25),"Login:", this, "LABEL");
 	label1->textAlign = CONTROL_TEXTALIGN_MIDDLERIGHT;
 	label1->toolTips = "Login has to be unique.";
-	txt_login = new CControl(instance, CVector2i(10,10), CVector2i(150,25),gameVar.cl_accountUsername, this, "EDIT", label1, CONTROL_SNAP_RIGHT);
+	txt_login = new CControl(instance, CVector2i(10,10), CVector2i(150,25), scratchLogin, this, "EDIT", label1, CONTROL_SNAP_RIGHT);
 
 	CControl * label2 = new CControl(instance, CVector2i(10,20), CVector2i(90,25),"Password:", this, "LABEL", label1, CONTROL_SNAP_BOTTOM);
 	label2->textAlign = CONTROL_TEXTALIGN_MIDDLERIGHT;
 	label2->toolTips = "Password to your account.";
-	txt_loginPassword = new CControl(instance, CVector2i(10,10), CVector2i(150,25),gameVar.cl_accountPassword, this, "EDIT", label2, CONTROL_SNAP_RIGHT);
+	txt_loginPassword = new CControl(instance, CVector2i(10,10), CVector2i(150,25), scratchPassword, this, "EDIT", label2, CONTROL_SNAP_RIGHT);
 	txt_loginPassword->password = true;
 
 	btn_login = new CControl(instance, CVector2i(20,20),CVector2i(110,55),"Login",this,"BUTTON", txt_login, CONTROL_SNAP_RIGHT, 5);

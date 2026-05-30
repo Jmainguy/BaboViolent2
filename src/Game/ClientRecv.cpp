@@ -21,20 +21,89 @@
 #include "netPacket.h"
 #include "Console.h"
 #include "Scene.h"
+#include "GameVar.h"
 #include "md5.h"
 #include "CStatus.h"
+#include <cstring>
+#include <cstdio>
 
 #if defined(_PRO_)
 	#include "md5_2.h"
 #endif
 
+#if !defined(WIN32) && defined(__linux__)
+#include <unistd.h>
+#endif
+
 extern Scene * scene;
 
+static void clientSendPlayerInfoAndVersionAccepted(Client* self)
+{
+	if (!self->game || !self->game->thisPlayer)
+		return;
+
+	net_clsv_svcl_player_info playerInfo;
+	memset(&playerInfo, 0, sizeof(playerInfo));
+
+	unsigned char mac[8];
+	bb_getMyMAC(mac);
+	sprintf(playerInfo.macAddr, "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
+		(int)mac[0], (int)mac[1], (int)mac[2], (int)mac[3], (int)mac[4], (int)mac[5]);
+
+	playerInfo.playerID = self->game->thisPlayer->playerID;
+	// Anonymous join: display name comes from local profile (cfg cl_playerName), not account system.
+	CString joinName = gameVar.cl_playerName;
+	if (joinName.len() < 1)
+		joinName = "Player";
+	if (joinName.len() > 31)
+		joinName.resize(31);
+	memcpy(playerInfo.playerName, joinName.s, joinName.len() + 1);
+	self->game->thisPlayer->name = joinName;
+
+	bb_clientSend(self->uniqueClientID, (char*)&playerInfo, sizeof(net_clsv_svcl_player_info), NET_CLSV_SVCL_PLAYER_INFO);
+
+	net_clsv_gameversion_accepted gameVersionAccepted;
+	gameVersionAccepted.playerID = self->game->thisPlayer->playerID;
+	if (scene->server)
+		strcpy(gameVersionAccepted.password, gameVar.sv_password.s);
+	else
+		strcpy(gameVersionAccepted.password, self->m_password.s);
+	bb_clientSend(self->uniqueClientID, (char*)&gameVersionAccepted, sizeof(net_clsv_gameversion_accepted), NET_CLSV_GAMEVERSION_ACCEPTED);
+}
+
+#if defined(_PRO_) && !defined(WIN32) && defined(__linux__)
+static int md5_client_executable(unsigned char output[16])
+{
+	char path[512];
+	ssize_t n = readlink("/proc/self/exe", path, sizeof(path) - 1);
+	if (n > 0)
+	{
+		path[n] = '\0';
+		return md5_file(path, output);
+	}
+	return md5_file((char*)"./BaboViolent", output);
+}
+#endif
+
 //
-// On a reçu un message yéé !
+// On a reï¿½u un message yï¿½ï¿½ !
 //
 void Client::recvPacket(char * buffer, int typeID)
 {
+	// Heartbeat must always be answered immediately (even during join/menu); delayed
+	// pongs caused "no respond since 3sec" kicks right after team pick / spawn.
+	if (typeID == NET_SVCL_PING)
+	{
+		net_svcl_ping ping;
+		memcpy(&ping, buffer, sizeof(net_svcl_ping));
+		net_clsv_pong pong;
+		memset(&pong, 0, sizeof(pong));
+		pong.playerID = ping.playerID;
+		bb_clientSend(uniqueClientID, (char*)&pong, sizeof(net_clsv_pong), NET_CLSV_PONG);
+		bb_clientUpdate(uniqueClientID, 0.f, UPDATE_SEND);
+		return;
+	}
+
 #if defined(_PRO_)
    
 	if( typeID == NET_SVCL_HASH_SEED )
@@ -49,8 +118,10 @@ void Client::recvPacket(char * buffer, int typeID)
       char pFile[512+1];
       GetModuleFileName(NULL, pFile, 512);
 		int result = md5_file(pFile, (unsigned char*)&output);		
+#elif defined(__linux__)
+		int result = md5_client_executable((unsigned char*)&output);
 #else 
-		int result = md5_file("./bv2.exe", (unsigned char*)&output);
+		int result = md5_file("./bv2.exe", (unsigned char*)&output);		
 #endif
 
 		//console->add(CString("\x03> client MD5 Output1 : %i",output[0]));
@@ -80,6 +151,9 @@ void Client::recvPacket(char * buffer, int typeID)
 	}
 #endif
 
+	if (gameVar.c_netlog && (!gotGameState || !isConnected))
+		console->add(CString("[net] recvPacket typeId=%i gotGameState=%i isConnected=%i downloadingMap=%i",
+			typeID, (int)gotGameState, (int)isConnected, (int)isDownloadingMap));
 
 	if (!gotGameState || !isConnected)
 	{
@@ -89,6 +163,8 @@ void Client::recvPacket(char * buffer, int typeID)
 			typeID != NET_SVCL_PING &&
 			typeID != NET_SVCL_MAP_CHUNK)
 		{
+			if (gameVar.c_netlog)
+				console->add(CString("\x9> [net] early-hold drop typeId=%i (need SERVER_INFO / handshake)", typeID));
 			return;
 		}
 	}
@@ -247,6 +323,13 @@ void Client::recvPacket(char * buffer, int typeID)
 				game->thisPlayer = game->players[newPlayer.newPlayerID];
 				game->thisPlayer->setThisPlayerInfo();
 			}
+			if (pendingVersionAccept)
+			{
+				pendingVersionAccept = false;
+				if (gameVar.c_netlog)
+					console->add("\x3> [net] Sending deferred GAMEVERSION handshake (NEWPLAYER arrived first on wire)");
+				clientSendPlayerInfoAndVersionAccepted(this);
+			}
 			break;
 		}
 	case NET_SVCL_GAMEVERSION:
@@ -255,42 +338,20 @@ void Client::recvPacket(char * buffer, int typeID)
 			memcpy(&gameVersion, buffer, sizeof(net_svcl_gameversion));
 			if (gameVersion.gameVersion == GAME_VERSION_CL && game->thisPlayer)
 			{
-				net_clsv_svcl_player_info playerInfo;
-
-				// on pogne notre mac adress
-				unsigned char mac[8];		// unsigned here is very important
-				bb_getMyMAC( mac );
-				sprintf( playerInfo.macAddr , "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x" , (int)mac[0], (int)mac[1],(int)mac[2],(int)mac[3],(int)mac[4],(int)mac[5] );
-				
-				// On send le playerInfo
-				playerInfo.playerID = game->thisPlayer->playerID;
-				memcpy(playerInfo.playerName, game->thisPlayer->name.s, game->thisPlayer->name.len() + 1);
-
-				gameVar.cl_accountUsername.resize(20);
-				memcpy(playerInfo.username, gameVar.cl_accountUsername.s, gameVar.cl_accountUsername.len() + 1);
-
-				RSA::MD5 pw((unsigned char*)gameVar.cl_accountPassword.s);
-				char* hex_digest = pw.hex_digest();
-				memcpy(playerInfo.password, hex_digest, 32);
-				delete[] hex_digest;
-
-				bb_clientSend(uniqueClientID, (char*)&playerInfo, sizeof(net_clsv_svcl_player_info), NET_CLSV_SVCL_PLAYER_INFO);
-
+				if (gameVar.c_netlog)
+					console->add("\x3> [net] GAMEVERSION matches; sending player info + version accepted");
+				clientSendPlayerInfoAndVersionAccepted(this);
 				console->add(CString("\x3> Same game version. Server is : %01i.%02i.%02i", (int)gameVersion.gameVersion/10000, (int)(gameVersion.gameVersion%10000)/100, ((int)gameVersion.gameVersion%100)));
-				net_clsv_gameversion_accepted gameVersionAccepted;
-				gameVersionAccepted.playerID = game->thisPlayer->playerID;
-				if (scene->server) //--- We are also server, retreive password
-				{
-					strcpy(gameVersionAccepted.password, gameVar.sv_password.s);
-				}
-				else
-				{
-					strcpy(gameVersionAccepted.password, m_password.s);
-				}
-				bb_clientSend(uniqueClientID, (char*)&gameVersionAccepted, sizeof(net_clsv_gameversion_accepted), NET_CLSV_GAMEVERSION_ACCEPTED);
+			}
+			else if (gameVersion.gameVersion == GAME_VERSION_CL && !game->thisPlayer)
+			{
+				pendingVersionAccept = true;
+				if (gameVar.c_netlog)
+					console->add("\x3> [net] GAMEVERSION before NEWPLAYER; deferring handshake until slot is assigned");
 			}
 			else
 			{
+				pendingVersionAccept = false;
 				// On disconnect
 				console->add(CString("\x4> Wrong game version. Server is : %01i.%02i.%02i", (int)gameVersion.gameVersion/10000, (int)(gameVersion.gameVersion%10000)/100, ((int)gameVersion.gameVersion%100)));
 				this->needToShutDown = true;
@@ -341,19 +402,34 @@ void Client::recvPacket(char * buffer, int typeID)
 		}
 	case NET_SVCL_SERVER_INFO:
 		{
+			if (gameVar.c_netlog)
+				console->add("\x3> [net] NET_SVCL_SERVER_INFO received; leaving connect screen");
 			isConnected = true;
 			gotGameState = true; // C beau, on est IN !!
 			net_svcl_server_info serverInfo;
 			memcpy(&serverInfo, buffer, sizeof(net_svcl_server_info));
 			game->mapSeed = serverInfo.mapSeed;
+			serverInfo.mapName[sizeof(serverInfo.mapName) - 1] = '\0';
 			game->mapName = serverInfo.mapName;
 			game->blueScore = serverInfo.blueScore;
 			game->redScore = serverInfo.redScore;
 			game->blueWin = serverInfo.blueWin;
 			game->redWin = serverInfo.redWin;
-			// On cré sa map ici
+			// On crï¿½ sa map ici
 			if(isServer)
 				game->createMap();
+			else if (!game->map)
+			{
+				CString localMapPath("main/maps/%s.bvm", game->mapName.s);
+				FILE* fic = fopen(localMapPath.s, "rb");
+				if (fic)
+				{
+					fclose(fic);
+					if (gameVar.c_netlog)
+						console->add("\x3> [net] Map found locally; skipping download");
+					game->createMap();
+				}
+			}
 			game->gameType = serverInfo.gameType;
 			// On a fini de loader, on change notre status
 			if (game->thisPlayer)
@@ -380,7 +456,7 @@ void Client::recvPacket(char * buffer, int typeID)
 			else if (!game->map->isValid)
 				this->needToShutDown = true;
 
-			//--- On start ça ste tune là !
+			//--- On start ï¿½a ste tune lï¿½ !
 	/*		if (gameVar.s_inGameMusic)
 			{
 				if (rand()%2 == 0)
@@ -449,16 +525,6 @@ void Client::recvPacket(char * buffer, int typeID)
 			if (game->players[playerPing.playerID])
 			{
 				game->players[playerPing.playerID]->ping = (int)playerPing.ping;
-			}
-			break;
-		}
-	case NET_SVCL_PING:
-		{
-			if (game->thisPlayer)
-			{
-				net_clsv_pong pong;
-				pong.playerID = game->thisPlayer->playerID;
-				bb_clientSend(uniqueClientID, (char*)&pong, sizeof(net_clsv_pong), NET_CLSV_PONG);
 			}
 			break;
 		}
@@ -533,12 +599,12 @@ void Client::recvPacket(char * buffer, int typeID)
 			net_svcl_projectile_coord_frame projectileCoordFrame;
 			memcpy(&projectileCoordFrame, buffer, sizeof(net_svcl_projectile_coord_frame));
 		//	console->add(CString("Client recved projectile Coord Frame %i", (int)projectileCoordFrame.frameID));
-			// Est-ce que notre player pocède des projectiles au moins? Sinon il n'est peut etre pas créé encore (bug)
+			// Est-ce que notre player pocï¿½de des projectiles au moins? Sinon il n'est peut etre pas crï¿½ï¿½ encore (bug)
 		//	if ((int)game->projectiles.size() > projectileCoordFrame.projectileID && projectileCoordFrame.projectileID >= 0)
 		//	{
 		//		if (game->projectiles[projectileCoordFrame.projectileID]->uniqueID != projectileCoordFrame.uniqueID)
 		//		{
-					// On doit searcher pour le bon, ils ont peut etre été décallé
+					// On doit searcher pour le bon, ils ont peut etre ï¿½tï¿½ dï¿½callï¿½
 					for (int i=0;i<(int)game->projectiles.size();++i)
 					{
 						Projectile * projectile = game->projectiles[i];
@@ -709,10 +775,10 @@ void Client::recvPacket(char * buffer, int typeID)
 					}
 				}
 
-				// Si on touche un joueur, on spawn du SANG :D:D:D si c'est ff à on ou off pis que c un ennemy :(
+				// Si on touche un joueur, on spawn du SANG :D:D:D si c'est ff ï¿½ on ou off pis que c un ennemy :(
 				if (playerShoot.hitPlayerID >= 0)
 				{
-					// On décrémente sa vie
+					// On dï¿½crï¿½mente sa vie
 				//	game->players[playerShoot.hitPlayerID]->hit(game->players[playerShoot.playerID]->weapon, game->players[playerShoot.playerID]);
 				}
 				
@@ -763,7 +829,7 @@ void Client::recvPacket(char * buffer, int typeID)
 						if (playerShoot.weaponID != -1)
 						{
 							// on va juste emettre du son debords
-							// On entends ça
+							// On entends ï¿½a
 							if (playerShoot.weaponID == -2)
 							{
 								// Play flame sound
@@ -791,7 +857,7 @@ void Client::recvPacket(char * buffer, int typeID)
 		}
 	case NET_SVCL_DELETE_PROJECTILE:
 		{
-			// Ça ça ne devrait pas fucker, car on envoit dans l'ordre tout le temps (viva el TCP)
+			// ï¿½a ï¿½a ne devrait pas fucker, car on envoit dans l'ordre tout le temps (viva el TCP)
 			net_svcl_delete_projectile deleteProjectile;
 			memcpy(&deleteProjectile, buffer, sizeof(net_svcl_delete_projectile));
 			// On check que le projectile existe au moins, sinon peut etre que le player n'est pas encore actif
@@ -815,7 +881,7 @@ void Client::recvPacket(char * buffer, int typeID)
 		}
 	case NET_SVCL_FLAME_STICK_TO_PLAYER:
 		{
-			// Ça ça ne devrait pas fucker, car on envoit dans l'ordre tout le temps (viva el TCP)
+			// ï¿½a ï¿½a ne devrait pas fucker, car on envoit dans l'ordre tout le temps (viva el TCP)
 			net_svcl_flame_stick_to_player flameStickToPlayer;
 			memcpy(&flameStickToPlayer, buffer, sizeof(net_svcl_flame_stick_to_player));
 			// On check que le projectile existe au moins, sinon peut etre que le player n'est pas encore actif
@@ -852,7 +918,11 @@ void Client::recvPacket(char * buffer, int typeID)
 				}
 #endif
 			}
-			game->spawnExplosion(CVector3f(explosion.position), CVector3f(explosion.normal), explosion.radius);
+			{
+				CVector3f explosionPos(explosion.position);
+				CVector3f explosionNrm(explosion.normal);
+				game->spawnExplosion(explosionPos, explosionNrm, explosion.radius);
+			}
 			break;
 		}
 	case NET_SVCL_PLAYER_HIT:
@@ -865,7 +935,7 @@ void Client::recvPacket(char * buffer, int typeID)
 				{
 					if (playerHit.playerID == game->thisPlayer->playerID)
 					{
-						// On recul avec la vel donné
+						// On recul avec la vel donnï¿½
 						CVector3f vel;
 						vel[0] = (float)playerHit.vel[0] / 10.0f;
 						vel[1] = (float)playerHit.vel[1] / 10.0f;
@@ -918,7 +988,7 @@ void Client::recvPacket(char * buffer, int typeID)
 		}
 	case NET_SVCL_CONSOLE:
 		{
-			//--- Pas plus compliqué que ça !
+			//--- Pas plus compliquï¿½ que ï¿½a !
 			console->add(buffer);
 			break;
 		}
@@ -946,7 +1016,7 @@ void Client::recvPacket(char * buffer, int typeID)
 						flagState.newFlagState == -2 &&
 						game->players[flagState.playerID])
 					{
-						// Ce joueur a sauvé le flag !!
+						// Ce joueur a sauvï¿½ le flag !!
 						game->players[flagState.playerID]->returns++;
 
 						if (game->thisPlayer)
@@ -1091,10 +1161,10 @@ void Client::recvPacket(char * buffer, int typeID)
 
 			if (roundState.reInit)
 			{
-				// Ouch, on fout toute à 0 (score, etc)
+				// Ouch, on fout toute ï¿½ 0 (score, etc)
 			}
 
-			// On switch sur ça et on emet le son appropriée
+			// On switch sur ï¿½a et on emet le son appropriï¿½e
 			switch (game->roundState)
 			{
 			case GAME_PLAYING: break;

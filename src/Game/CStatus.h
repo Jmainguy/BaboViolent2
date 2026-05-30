@@ -16,21 +16,16 @@
 	BaboViolent 2 source code. If not, see http://www.gnu.org/licenses/.
 */
 
-#ifndef CSTATUS_H_INCLUDED
-#define CSTATUS_H_INCLUDED
+#ifndef CSTATUS_H
+#define CSTATUS_H
 
-#include "CString.h"
-
-
-class CCurl;
-
+#include "Zeven.h"
 
 class CStatus
 {
 public:
-
-	// States
-	enum {
+	enum
+	{
 		OFFLINE = 0,
 		WEBSITE = 1,
 		ONLINE = 2,
@@ -40,24 +35,20 @@ public:
 	CStatus();
 	virtual ~CStatus();
 
-	void	set(int status, CString serverName = "", CString serverIP = "", int port = 0);
-	int		get();
-	CString	getText(int in_status = -1);
-	void	update();
-	void	processQueue();
+	void set(int status, CString serverName = "", CString serverIP = "", int port = 0);
+	int get();
+	CString getText(int in_status = -1);
 
+	void update();
+	void processQueue();
 
 private:
-	std::vector<CCurl*>	m_requests;
-	int		m_status;
-
-	CString	m_server;
+	int m_status;
+	CString m_server;
 	CString m_ip;
-	int		m_port;
+	int m_port;
 };
-
 
 extern CStatus* status;
 
 #endif
-

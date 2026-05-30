@@ -55,7 +55,7 @@ void Client::render(float & alphaScope)
 		}
 	}
 
-	// C'est côté client qu'on fait ça ;)
+	// C'est cï¿½tï¿½ client qu'on fait ï¿½a ;)
 	if (isConnected) game->render();
 
 	// LE SNIPER SCOPE
@@ -256,7 +256,7 @@ void Client::render(float & alphaScope)
 
 					glDisable(GL_TEXTURE_2D);
 
-					// On affiche sa vie à droite
+					// On affiche sa vie ï¿½ droite
 					glBegin(GL_QUADS);
 						glColor3f(1,1,1);
 						glVertex2f(760, 390);
@@ -610,7 +610,7 @@ void Client::render(float & alphaScope)
 					{
 						glColor4f(1,1,1,chatMessages[i].duration);
 					}
-					// On l'écris à peut pret au tier de l'écran à gauche
+					// On l'ï¿½cris ï¿½ peut pret au tier de l'ï¿½cran ï¿½ gauche
 					glEnable(GL_TEXTURE_2D);
 
 #if defined(_PRO_)	
@@ -658,7 +658,7 @@ void Client::render(float & alphaScope)
 					{
 						glColor4f(1,1,1,eventMessages[i].duration);
 					}
-					// On l'écris à peut pret au 2 tier de l'écran à gauche
+					// On l'ï¿½cris ï¿½ peut pret au 2 tier de l'ï¿½cran ï¿½ gauche
 
 #if defined(_PRO_)	                  
             float eventTextSize = (float)gameVar.r_eventTextSize;
@@ -815,7 +815,6 @@ void Client::render(float & alphaScope)
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 				if (blink > .25f) printCenterText(400, 300-32, 64, gameVar.lang_connectingC);
 				printCenterText(400, 332, 48, gameVar.lang_pressF10ToCancel);
-				if (dkiGetState(KeyF10) == DKI_DOWN) console->sendCommand("disconnect");
 			glPopAttrib();
 		dkglPopOrtho();
 #endif

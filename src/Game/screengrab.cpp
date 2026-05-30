@@ -24,66 +24,71 @@
 #include "Game.h"
 #include "Player.h"
 #include "Scene.h"
-#include <GL\gl.h>
-#include <time.h>
-#include <stdio.h>
+#include <GL/gl.h>
+#ifndef GL_BGRA_EXT
+#define GL_BGRA_EXT 0x80E1
+#endif
+#include <cstdint>
+#include <ctime>
+#include <cstdio>
 
 
 extern Scene* scene;
 
-void SaveBitmapToFile( BYTE* pBitmapBits, LONG lWidth, LONG lHeight,WORD wBitsPerPixel, LPCTSTR lpszFileName )
+static void bmp_write_le16(FILE *f, std::uint16_t v)
 {
-    BITMAPINFOHEADER bmpInfoHeader = {0};
-    // Set the size
-    bmpInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-    // Bit count
-    bmpInfoHeader.biBitCount = wBitsPerPixel;
-    // Use all colors
-    bmpInfoHeader.biClrImportant = 0;
-    // Use as many colors according to bits per pixel
-    bmpInfoHeader.biClrUsed = 0;
-    // Store as un Compressed
-    bmpInfoHeader.biCompression = BI_RGB;
-    // Set the height in pixels
-    bmpInfoHeader.biHeight = lHeight;
-    // Width of the Image in pixels
-    bmpInfoHeader.biWidth = lWidth;
-    // Default number of planes
-    bmpInfoHeader.biPlanes = 1;
-    // Calculate the image size in bytes
-    bmpInfoHeader.biSizeImage = lWidth* lHeight * (wBitsPerPixel/8);
+	unsigned char b[2] = { (unsigned char)(v & 0xff), (unsigned char)(v >> 8) };
+	std::fwrite(b, 1, 2, f);
+}
 
-    BITMAPFILEHEADER bfh = {0};
-    // This value should be values of BM letters i.e 0×4D42
-    // 0×4D = M 0×42 = B storing in reverse order to match with endian
-    bfh.bfType=0x4D42;
-    /* or
-    bfh.bfType = ‘B’+(’M’ << 8);
-    // <<8 used to shift ‘M’ to end
-    */
-    // Offset to the RGBQUAD
-    bfh.bfOffBits = sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER);
-    // Total size of image including size of headers
-    bfh.bfSize = bfh.bfOffBits + bmpInfoHeader.biSizeImage;
-    // Create the file in disk to write
-    HANDLE hFile = CreateFile( lpszFileName,GENERIC_WRITE, 0,NULL,
+static void bmp_write_le32(FILE *f, std::uint32_t v)
+{
+	unsigned char b[4] = {
+		(unsigned char)(v & 0xff),
+		(unsigned char)((v >> 8) & 0xff),
+		(unsigned char)((v >> 16) & 0xff),
+		(unsigned char)((v >> 24) & 0xff)
+	};
+	std::fwrite(b, 1, 4, f);
+}
 
-                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,NULL);
+// Portable 32-bit BGRA BMP (matches glReadPixels GL_BGRA_EXT layout).
+void SaveBitmapToFile(unsigned char *pBitmapBits, int lWidth, int lHeight, int wBitsPerPixel, const char *lpszFileName)
+{
+	if (!pBitmapBits || !lpszFileName || wBitsPerPixel != 32 || lWidth <= 0 || lHeight <= 0)
+		return;
 
-    if( !hFile ) // return if error opening file
-    {
-        return;
-    }
+	const std::uint32_t rowBytes = (std::uint32_t)lWidth * 4u;
+	const std::uint32_t imageSize = rowBytes * (std::uint32_t)lHeight;
+	const std::uint32_t infoHeaderSize = 40;
+	const std::uint32_t fileHeaderSize = 14;
+	const std::uint32_t offBits = fileHeaderSize + infoHeaderSize;
 
-    DWORD dwWritten = 0;
-    // Write the File header
-    WriteFile( hFile, &bfh, sizeof(bfh), &dwWritten , NULL );
-    // Write the bitmap info header
-    WriteFile( hFile, &bmpInfoHeader, sizeof(bmpInfoHeader), &dwWritten, NULL );
-    // Write the RGB Data
-    WriteFile( hFile, pBitmapBits, bmpInfoHeader.biSizeImage, &dwWritten, NULL );
-    // Close the file handle
-    CloseHandle( hFile );
+	FILE *hFile = std::fopen(lpszFileName, "wb");
+	if (!hFile)
+		return;
+
+	std::fputc('B', hFile);
+	std::fputc('M', hFile);
+	bmp_write_le32(hFile, offBits + imageSize);
+	bmp_write_le16(hFile, 0);
+	bmp_write_le16(hFile, 0);
+	bmp_write_le32(hFile, offBits);
+
+	bmp_write_le32(hFile, infoHeaderSize);
+	bmp_write_le32(hFile, (std::uint32_t)lWidth);
+	bmp_write_le32(hFile, (std::uint32_t)lHeight);
+	bmp_write_le16(hFile, 1);
+	bmp_write_le16(hFile, 32);
+	bmp_write_le32(hFile, 0);
+	bmp_write_le32(hFile, imageSize);
+	bmp_write_le32(hFile, 0);
+	bmp_write_le32(hFile, 0);
+	bmp_write_le32(hFile, 0);
+	bmp_write_le32(hFile, 0);
+
+	std::fwrite(pBitmapBits, 1, imageSize, hFile);
+	std::fclose(hFile);
 }
 
 bool SaveScreenGrabAuto() 

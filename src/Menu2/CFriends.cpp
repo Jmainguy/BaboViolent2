@@ -22,12 +22,7 @@
 #include "Console.h"
 #include "GameVar.h"
 #include "CMenuManager.h"
-#include "CCurl.h"
 #include "CStatus.h"
-
-
-#define TIXML_USE_STL
-#include "tinyxml.h"
 
 CFriends::CFriends(CControl * in_parent, CControl * in_alignTo)
 {
@@ -75,13 +70,10 @@ CFriends::CFriends(CControl * in_parent, CControl * in_alignTo)
 
 	clickInterval = 0;
 	lastClicked = 0;
-	request = 0;
 }
 
 CFriends::~CFriends()
 {
-	while(request->isRunning()) {};
-	delete request;
 	dksDeleteSound(m_sfxClic);
 	dksDeleteSound(m_sfxOver);
 }
@@ -101,92 +93,13 @@ void CFriends::updatePerso(float delay)
 		menuManager.hoveringControl = 0;
 	}
 	clickInterval += delay;
-
-	if(request && !request->isRunning() && request->recieved() > 0 && requestProcessed == false)
-	{
-		requestProcessed = true;
-		console->add(CString("\x8> Friends request recieved (%i bytes)",request->recieved()));
-
-		if(request->response()[0] == '<')
-		{
-			TiXmlDocument doc;
-			doc.Parse(request->response().c_str());
-
-			if(!doc.Error())
-			{
-				console->add("\x8> Friends Parse successful");
-
-				TiXmlHandle docHandle(&doc);
-				TiXmlElement* item = docHandle.FirstChild("friends").FirstChild().ToElement();
-
-				for(item; item; item = item->NextSiblingElement() )
-				{
-					const char* name = item->Attribute("name");
-					const char* sname = item->Attribute("server_name");
-					int stat = 0;
-					item->QueryIntAttribute("location", &stat);
-					int lastSeen = 0;
-					item->QueryIntAttribute("last_update", &lastSeen);
-					const char* ip = item->Attribute("server_ip");
-					const char* port = item->Attribute("server_port");
-
-					CString statusText =status->getText(stat);
-					
-					CControl* friendRow = new CControl(lst_browseList, CVector2i(10, 10 + nbGames*30), CVector2i(676,30), "", this, "LABEL");
-					CControl* Name = new CControl(friendRow, CVector2i(0, 5), CVector2i(150,20), CString("%s",name), this, "LABEL");
-					CControl* serverOn = new CControl(friendRow, CVector2i(150, 5), CVector2i(300,20), CString("%s", sname), this, "LABEL");
-					CControl* friendStatus = new CControl(friendRow, CVector2i(450, 5), CVector2i(100,20), statusText, this, "LABEL");
-
-					CControl* since;
-
-					if (lastSeen < 60)
-					{
-						since = new CControl(friendRow, CVector2i(550, 5), CVector2i(100,20), CString("%i mins ago", lastSeen % 60), this, "LABEL");
-					}
-					else if (lastSeen < 60 * 24)
-					{
-						since = new CControl(friendRow, CVector2i(550, 5), CVector2i(100,20), CString("%i hours ago", (lastSeen / 60) % 24), this, "LABEL");
-					}
-					else if (lastSeen < 60 * 24 * 7)
-					{
-						since = new CControl(friendRow, CVector2i(550, 5), CVector2i(100,20), CString("%i days ago", (lastSeen / 60 / 24) % 7), this, "LABEL");
-					}
-					else
-					{
-						since = new CControl(friendRow, CVector2i(550, 5), CVector2i(100,20), CString("%i weeks ago", (lastSeen / 60 / 24 / 7)), this, "LABEL");
-					}
-
-					CString* ipport = new CString("%s %s", ip, port);
-					friendRow->customData = ipport;
-
-					nbGames++;
-				}
-			}
-		}
-	}
 }
 
 void CFriends::updateList()
 {
 	lst_browseList->clearList();
 	nbGames = 0;
-
-	if(request == 0 || !request->isRunning())
-	{
-		if(request != 0)
-			delete request;
-
-		CUrlData data;
-		data.add("action", "getfriends");
-		data.add("username",gameVar.cl_accountUsername.s);
-		data.add("password", gameVar.cl_accountPassword.s, CUrlData::MD5);
-		data.add("ip", bb_getMyIP());
-
-		request = new CCurl(gameVar.db_accountServer, data.get());
-		request->start();
-		requestProcessed = false;
-		console->add("\x9> Starting friends request");
-	}
+	console->add("\x9> Friends list over HTTP is removed (use LAN / master browser).", false);
 }
 
 void CFriends::MouseEnter(CControl * control)
@@ -259,7 +172,7 @@ void CFriends::DbClick(CControl * control)
 			//	menuManager.focusControl = 0;
 			//	menuManager.hoveringControl = 0;
 
-			//--- Bah, on launch ste game là !!!
+			//--- Bah, on launch ste game lï¿½ !!!
 			CString* server = ((CString*)(control->customData));
 			if(server->len() > 1)
 			{

@@ -66,7 +66,6 @@
 //quelques proprietes globale
 
 	
-	float			ConnCheck=0;		// va mesurer le delay avant qu'on update les incoming connections
 	UINT4		LastClientID=0;		// keep last emitted client ID
 
 	cServer			*Server=0;		// notre objet serveur
@@ -266,8 +265,6 @@ INT4 bb_serverUpdate(float elapsed,int updateMsg,char* newIP)
 
 	if(!Server) return -999999999;
 
-	ConnCheck += elapsed;
-
 	switch(updateMsg)
 	{
 		case UPDATE_SEND_RECV: //on update les Send ET les Receive
@@ -280,16 +277,9 @@ INT4 bb_serverUpdate(float elapsed,int updateMsg,char* newIP)
 			if(r) return r;
 
 			
-			//on update les connections
-			if(ConnCheck >= 0.5f)
-			{
-				ConnCheck = 0;
-				
-				if(Server->PendingConnections)
-				{
-					return Server->UpdateConnections(newIP);
-				}
-			}
+			// Pending TCP handshakes: run every frame (was throttled to 0.5s, which delayed the 37-byte welcome).
+			if (Server->PendingConnections)
+				return Server->UpdateConnections(newIP);
 
 			return 0;
 		}
@@ -306,17 +296,8 @@ INT4 bb_serverUpdate(float elapsed,int updateMsg,char* newIP)
 			if(r) return r;
 
 			
-			//on update les connections
-			if(ConnCheck >= 0.5f)
-			{
-				ConnCheck = 0;
-				
-				if(Server->PendingConnections)
-				{
-					return Server->UpdateConnections(newIP);
-				}
-			}
-
+			if (Server->PendingConnections)
+				return Server->UpdateConnections(newIP);
 
 			return 0;
 		}

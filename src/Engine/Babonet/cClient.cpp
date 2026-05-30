@@ -227,7 +227,9 @@ int cClient::UpdateConnection(float elapsed)
 			//printf(">>>>>>>>>>>>>>Error while connecting\n");
 			//sprintf(LastMessage,"Error while connecting...aborting, see bb_clientGetLastError()");
 
-			sprintf(LastError, Connection->LastError);
+			// cConnection already wrote into this buffer (LastError was passed into cConnection).
+			// Never sprintf(LastError, Connection->LastError): that uses the message as a format string
+			// and breaks badly once the text contains conversion specifiers (e.g. "%s:%u" in handshake errors).
 			delete Connection;
 			Connection = 0;
 			return r;
@@ -532,10 +534,20 @@ int cClient::SendPacketsToServer()
 }
 void cClient::Disconnect()
 {
-	CloseSocket(FileDescriptor);
-	if(UDPenabled) CloseSocket(UDPfd);
+	if (FileDescriptor > 0)
+	{
+		FD_CLR((unsigned int)FileDescriptor, &master);
+		CloseSocket(FileDescriptor);
+	}
+	if (UDPenabled && UDPfd > 0)
+	{
+		FD_CLR((unsigned int)UDPfd, &master);
+		CloseSocket(UDPfd);
+	}
 	UDPfd			=	0;
 	FileDescriptor	=	0;
+	fdmax			=	0;
+	isConnected		=	false;
 }
 
 int cClient::ReceiveStream(int nbytes,char *buf)
@@ -597,12 +609,13 @@ int cClient::ReceiveStream(int nbytes,char *buf)
 				//Key is complete, lets analyze it
 				char key[5];
 				char pid[5];	//packet ID
-				memcpy(key, lastKey, sizeof(UINT4));
+				memcpy(key, lastKey, sizeof(char) * 4);
 				key[4] = '\0';
 				if(stricmp("RND1",key)) return 1;	//RndLabs key is corrupted, potential hacker
 
-				memcpy(pid, lastKey + sizeof(UINT4), sizeof(UINT4));
-                               			
+				memcpy(pid, lastKey + (sizeof(char) * 4), sizeof(char) * 4);
+				pid[4] = '\0';
+
 				if(GetPendingID(pid)) return 1;		//potential hacker
 				PendingID++;
 
@@ -774,7 +787,7 @@ bool cClient::GetPendingID(char *pid)
 {
 	char digest[33];
 
-	sprintf( digest , "%ld" , PendingID );
+	snprintf(digest, sizeof(digest), "%lu", (unsigned long)PendingID);
 	//ltoa( PendingID , digest , 10 );
 
 	//create md5 hash from current PendingID
@@ -832,10 +845,9 @@ int cClient::Send(UINT4 &nbByte)
 	if(PacketsToSend)
 	{
 
-		//on parse notre key
+		//on parse notre key (4-byte RND1 tag; do not use sizeof(UINT4) — 8 bytes on LP64)
 		memcpy(buf + packed,&Key,sizeof(char)*4);
-            //packed += sizeof(sizeof(char)*4);
-            packed += sizeof(UINT4);
+		packed += 4;
 	
 		//on parse le packetID
 		char pid[5];
@@ -940,12 +952,11 @@ void cClient::GetLastPacketID(char *pid)
 	++LastPacketID;
 
 	char digest[33];
+	char plain[33];
 
-	sprintf( digest , "%ld" , LastPacketID );
-//	ltoa( LastPacketID , digest , 10 );
+	snprintf(plain, sizeof(plain), "%lu", (unsigned long)LastPacketID);
 
-	//create md5 hash from current PendingID
-	CMD5 md5(digest);
+	CMD5 md5(plain);
 	sprintf(digest, "%s",md5.getMD5Digest());
 	md5.setPlainText(0);
 

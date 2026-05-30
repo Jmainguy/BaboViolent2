@@ -395,7 +395,7 @@ void Scene::render()
 					if (status->get() == CStatus::ONLINE)
 					{
 						glColor3f(0,1,0);
-						printLeftText(10, (float)res[1] - 20, 20, CString("\x2 Current user: ") + gameVar.cl_accountUsername);
+						printLeftText(10, (float)res[1] - 20, 20, CString("\x2 Name: ") + gameVar.cl_playerName);
 					}
 					else if (status->get() == CStatus::OFFLINE)
 					{
@@ -482,7 +482,7 @@ void Scene::render()
 					if (status->get() == CStatus::ONLINE)
 					{
 						glColor3f(0,1,0);
-						printLeftText(10, (float)res[1] - 20, 20, CString("\x2 Current user: ") + gameVar.cl_accountUsername);
+						printLeftText(10, (float)res[1] - 20, 20, CString("\x2 Name: ") + gameVar.cl_playerName);
 					}
 					else if (status->get() == CStatus::OFFLINE)
 					{

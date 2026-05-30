@@ -38,8 +38,6 @@
 #define GAME_UPDATE_DELAY 20
 
 
-class CCurl;
-
 struct cachedPlayer
 {
 	bool Valid;
@@ -102,14 +100,12 @@ public:
 		unsigned long	uniqueClientID;
 		CString	mapName;
 		int		chunkNum;
+		bool	mapXferOpenFailLogged;
 	};
 	std::vector<SMapTransfer> mapTransfers;
 
 	// List of commands that can be used with vote
 	std::vector<CString> voteList;
-
-	// List of authorization requests
-	std::vector<CCurl*>	authRequests;
 
 	const float maxTimeOverMaxPing;
 
@@ -180,8 +176,6 @@ public:
 
 	bool filterMapFromRotation(const mapInfo & map);
 
-	std::vector<std::string> reportUploadURLs;
-
 	typedef std::multimap<int, PlayerStats*> StatsCache;
 	typedef std::pair<int, PlayerStats*> StatsCachePair;
 
@@ -205,8 +199,6 @@ private:
 
 	// List of stats of disconnected players, cleared at the end of round
 	StatsCache statsCache;
-
-	std::vector<CCurl*> reportUploads;
 
 	struct delayedKickStruct
 	{

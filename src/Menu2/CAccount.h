@@ -28,6 +28,8 @@ class CAccount : public CPanel
 {
 private:
 	IDialog * lastDialog;
+	CString scratchLogin;
+	CString scratchPassword;
 
 public:
 	CControl * parent;

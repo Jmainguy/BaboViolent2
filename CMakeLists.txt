@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.10)
 
 # Define LINUX
 if (UNIX AND NOT APPLE)
@@ -10,6 +10,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
 # Project name
 project(BaboViolent)
+
+if(POLICY CMP0072)
+    cmake_policy(SET CMP0072 NEW)
+endif()
 
 # Some compiler flags
 set(CMAKE_CXX_STANDARD 11) # C++11
@@ -105,25 +109,50 @@ list(APPEND includes PUBLIC
     ./src/Zeven/API/
 )
 
-# cURL
-option(BUILD_SHARED_LIBS OFF)
-option(HTTP_ONLY ON)
-set(BUILD_TESTING OFF)
-option(BUILD_CURL_EXE OFF)
-add_subdirectory(./thirdparty/curl/)
-list(APPEND includes ./thirdparty/curl/include/)
-list(APPEND libs libcurl)
+if (LINUX)
+    list(APPEND includes PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/compat/linux
+    )
+endif()
 
-# sqlite3
-file(GLOB src_thirdparty_sqlite ./thirdparty/sqlite/*.*)
+# sqlite3 (omit shell.c — it defines its own main())
+set(src_thirdparty_sqlite
+    ./thirdparty/sqlite/sqlite3.c
+    ./thirdparty/sqlite/sqlite3.h
+    ./thirdparty/sqlite/sqlite3ext.h
+)
 source_group("thirdparty\\sqlite" FILES ${src_thirdparty_sqlite})
 list(APPEND includes ./thirdparty/sqlite/)
 
-# SDL
-set(HAVE_LIBC ON)
-add_subdirectory(./thirdparty/SDL/)
-list(APPEND libs SDL2-static)
-list(APPEND includes PUBLIC ./thirdparty/SDL/include/)
+# SDL — bundled static, except Linux+SDL2_mixer: distro libSDL2_mixer.so needs the same (system) libSDL2 as in its .pc file.
+set(BV2_LINUX_SYS_SDL2 OFF)
+if(UNIX AND NOT APPLE)
+	find_package(PkgConfig QUIET)
+	if(PKG_CONFIG_FOUND)
+		pkg_check_modules(SDL2MIXER QUIET SDL2_mixer)
+		if(SDL2MIXER_FOUND)
+			set(BV2_LINUX_SYS_SDL2 ON)
+		endif()
+	endif()
+endif()
+
+if(WIN32 OR APPLE OR NOT BV2_LINUX_SYS_SDL2)
+	set(HAVE_LIBC ON)
+	add_subdirectory(./thirdparty/SDL/)
+	list(APPEND libs SDL2-static)
+	list(APPEND includes PUBLIC ./thirdparty/SDL/include/)
+endif()
+
+if(BV2_LINUX_SYS_SDL2)
+	message(STATUS "SDL2_mixer found — USE_SDL_MIXER; linking system libSDL2 (matches libSDL2_mixer.so ABI)")
+	add_definitions(-DUSE_SDL_MIXER)
+	list(APPEND libs ${SDL2MIXER_LIBRARIES})
+	list(APPEND includes ${SDL2MIXER_INCLUDE_DIRS})
+else()
+	if(UNIX AND NOT APPLE)
+		message(STATUS "SDL2_mixer not found — client will have no audio (install SDL2_mixer-devel or use FMOD)")
+	endif()
+endif()
 
 # OpenGL
 find_package(OpenGL REQUIRED)
@@ -152,8 +181,7 @@ list(APPEND includes PUBLIC ./thirdparty/imgui/ ./thirdparty/imgui/examples/)
 list(APPEND includes PUBLIC ./thirdparty/BrebisGL/)
 file(GLOB src_thirdparty_brebisgl ./thirdparty/BrebisGL/*.*)
 
-# BaboViolent.exe, use WinMain on Windows
-add_executable(BaboViolent WIN32
+set(BV2_COMMON_SOURCES
     ${src_Engine_Babonet}
     ${src_Engine_dko}
     ${src_Engine_Zeven_dkc}
@@ -176,12 +204,62 @@ add_executable(BaboViolent WIN32
     ${src_Weather}
     ${src_Zeven}
     ${src_Zeven_API}
-
     ${src_thirdparty_sqlite}
     ${src_thirdparty_imgui}
     ${src_thirdparty_brebisgl}
 )
 
-# Lib/Headers
+# Client (graphical)
+if(WIN32)
+    add_executable(BaboViolent WIN32 ${BV2_COMMON_SOURCES})
+else()
+    add_executable(BaboViolent ${BV2_COMMON_SOURCES})
+endif()
 target_include_directories(BaboViolent ${includes})
 target_link_libraries(BaboViolent ${libs})
+
+# Dedicated game server (same sources, DEDICATED_SERVER)
+add_executable(BaboViolentDedicated ${BV2_COMMON_SOURCES})
+target_compile_definitions(BaboViolentDedicated PRIVATE DEDICATED_SERVER)
+target_include_directories(BaboViolentDedicated ${includes})
+target_link_libraries(BaboViolentDedicated ${libs})
+
+# Master listing server (TCP BaboMasterServer)
+set(MASTERSERVER_SRC_DIR ${CMAKE_SOURCE_DIR}/src/MasterListingServer)
+set(MASTERSERVER_SOURCES
+    ${MASTERSERVER_SRC_DIR}/baboNet.cpp
+    ${MASTERSERVER_SRC_DIR}/cBV2game.cpp
+    ${MASTERSERVER_SRC_DIR}/CClient.cpp
+    ${MASTERSERVER_SRC_DIR}/cConnection.cpp
+    ${MASTERSERVER_SRC_DIR}/cDNSquery.cpp
+    ${MASTERSERVER_SRC_DIR}/cIncConnection.cpp
+    ${MASTERSERVER_SRC_DIR}/cMasterServer.cpp
+    ${MASTERSERVER_SRC_DIR}/MasterClient.cpp
+    ${MASTERSERVER_SRC_DIR}/cNetManager.cpp
+    ${MASTERSERVER_SRC_DIR}/cPacket.cpp
+    ${MASTERSERVER_SRC_DIR}/cPeer.cpp
+    ${MASTERSERVER_SRC_DIR}/cPeer2Peer.cpp
+    ${MASTERSERVER_SRC_DIR}/CServer.cpp
+    ${MASTERSERVER_SRC_DIR}/cUDPpacket.cpp
+    ${MASTERSERVER_SRC_DIR}/CThread.cpp
+    ${MASTERSERVER_SRC_DIR}/dkc.cpp
+    ${MASTERSERVER_SRC_DIR}/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/Engine/Babonet/md5c.c
+    ${CMAKE_SOURCE_DIR}/src/Engine/Babonet/md5class.cpp
+    ./thirdparty/sqlite/sqlite3.c
+)
+add_executable(BaboMasterServer ${MASTERSERVER_SOURCES})
+target_include_directories(BaboMasterServer PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/Engine/Babonet
+    ${MASTERSERVER_SRC_DIR}
+    ${CMAKE_SOURCE_DIR}/thirdparty/sqlite
+)
+target_compile_definitions(BaboMasterServer PRIVATE LINUX)
+set_target_properties(BaboMasterServer PROPERTIES CXX_STANDARD 11)
+find_package(Threads REQUIRED)
+target_link_libraries(BaboMasterServer PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+if(WIN32)
+    target_link_libraries(BaboMasterServer PRIVATE ws2_32)
+else()
+    target_compile_options(BaboMasterServer PRIVATE -Wno-deprecated-declarations)
+endif()

@@ -336,7 +336,8 @@ int cConnection::Update(float elapsed)
 				State	=	2;
 				connID	=	0;
 				ToRecv	=	37;	//on a 37 byte a recevoir du serveur
-	
+				ConTimeout = 0.f; // fresh budget for handshake recv (state 2)
+
 				FD_SET(*FileDescriptor,Master);
 				*FDmax	=	*FileDescriptor;
 			
@@ -404,19 +405,21 @@ int cConnection::Update(float elapsed)
 				}
 
 				ToRecv -= r;
+				if (r > 0)
+					ConTimeout = 0.f;
 
 				if(!ToRecv) //on a recu tout ce quon attendais
 				{
-					memcpy(&connID,RecvBuf,sizeof(connID));
+					unsigned int wireConnId = 0;
+					memcpy(&wireConnId, RecvBuf, 4);
+					connID = wireConnId;
 
 					char udp=0;
-					memcpy(&udp,RecvBuf + sizeof(connID), sizeof(char));
+					memcpy(&udp, RecvBuf + 4, 1);
 
-					char junk[33];
-					memcpy(&junk, RecvBuf + sizeof(connID) + sizeof(char), sizeof(char) * 32);
-					//junk[32] = '\0';
-
-					memcpy(Lpid , &(junk[28]) , sizeof(UINT4) );
+					unsigned int wirePid = 0;
+					memcpy(&wirePid, RecvBuf + 33, 4);
+					*Lpid = wirePid;
 
 					
 // 					if(udp)
@@ -452,6 +455,19 @@ int cConnection::Update(float elapsed)
 					
 				}
         	}
+			else if (ToRecv > 0)
+			{
+				ConTimeout += elapsed;
+				if (ConTimeout > 10.0f)
+				{
+					if (*FileDescriptor)
+						CloseSocket(*FileDescriptor);
+					ConTimeout = 0;
+					snprintf(LastError, 256, "Error : timed out waiting for BaboNet TCP welcome (%s:%u): no 37-byte handshake from this peer (wrong process/port or firewall).",
+						inet_ntoa(RemoteIP->sin_addr), (unsigned)ntohs(RemoteIP->sin_port));
+					return 1;
+				}
+			}
 
 			return 0;
 		}

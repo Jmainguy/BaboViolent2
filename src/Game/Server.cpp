@@ -18,13 +18,15 @@
 
 #include "Server.h"
 #include "Console.h"
+#include "GameVar.h"
 #include "netPacket.h"
 #include "RemoteAdminPackets.h"
-#include "CCurl.h"
 #include "ReportGen.h"
 #include <time.h>
 #include <fstream>
 #include <algorithm>
+#include <cstring>
+#include <string>
 #ifdef WIN32
 	#include <direct.h>
 #else
@@ -77,7 +79,6 @@ Server::Server(Game * pGame): maxTimeOverMaxPing(5.0f)//, maxIdleTime(180.0f)
 		banList.push_back( std::pair<CString,CString>(name, ip) );
 
 	}
-	//reportUploadURLs.push_back("http://localhost/index.php");
 }
 
 
@@ -448,6 +449,8 @@ void Server::updateNet(float delay, bool send)
 	{
 		// On a un nouveu client!
 		console->add(CString("\x3> A client has connected. Client ID : %i", clientID), true);
+		if (gameVar.c_netlog)
+			console->add(CString("server> [net] new TCP client babonetID=%i IP=%s (expect GAMEVERSION_ACCEPTED then PLAYER_INFO)", clientID, IPDuGars), true);
 
 		// Check against ban list
 		for(std::size_t i = 0; i < banList.size(); ++i)
@@ -520,7 +523,10 @@ void Server::updateNet(float delay, bool send)
 						}
 					}
 					// On le disconnect !!
-					console->add(CString("\x3> Player disconnected : %s ID:%i", game->players[i]->name.s, i), true);
+					console->add(CString("\x3> Player disconnected : %s playerSlot=%i babonetID=%lu",
+						game->players[i]->name.s, i, (unsigned long)game->players[i]->babonetID), true);
+					if (gameVar.c_netlog)
+						console->add(CString("server> [net] TCP link lost for babonetID=%i (client quit or network); cleared slot %i", -clientID, i), true);
 					// broadcast to potential remote admins
 					if( master ) master->RA_DisconnectedPlayer( textColorLess(game->players[i]->name).s, game->players[i]->playerIP, (long)game->players[i]->playerID );
 					ZEVEN_SAFE_DELETE(game->players[i]);
@@ -576,101 +582,6 @@ void Server::update(float delay)
 		{
 			sendServerInfo();
 			infoSendDelay = 0;
-		}
-
-		// Check to see if we have auth request responses
-		if( authRequests.size() > 0 )
-		{
-			// Since deleting from a vector invaldates the iterator, we'll add to another
-			// vector and swap.
-			std::vector<CCurl*> stillRunning;
-
-			// Iterate through requests
-			for(std::vector<CCurl*>::iterator i = authRequests.begin(); i != authRequests.end(); ++i)
-			{
-				CCurl* request = (*i);
-				if(!request->isRunning())
-				{
-					console->add(CString("[Auth] Response (%i bytes) recieved",request->recieved()));
-
-					// Get player id
-					int id = *((int*)request->userData());
-					delete (int*)request->userData();
-
-					// Get user id
-					if(request->recieved() > 0 && game->players[id] && request->recieved() < MAX_CARAC - 1)
-					{
-						CString temp = CString("%s", request->response().c_str() );
-						int userID = temp.toInt();
-
-						// Set player's id
-						if(userID > 0)
-						{
-							game->players[id]->userID = userID;
-							console->add(CString("[Auth] %s authenticated with id %i", game->players[id]->name.s, userID), true);
-							/*PlayerStats* ps = getStatsFromCache(game->players[id]->userID);
-							if (ps != 0)
-							{
-								ps->MergeStats(game->players[id]);
-
-								net_svcl_player_update_stats playerStats;
-								playerStats.playerID = (char)id;
-								playerStats.kills = (short)game->players[id]->kills;
-								playerStats.deaths = (short)game->players[id]->deaths;
-								playerStats.score = (short)game->players[id]->score;
-								playerStats.returns = (short)game->players[id]->returns;
-								playerStats.flagAttempts = (short)game->players[id]->flagAttempts;
-								playerStats.timePlayedCurGame = game->players[id]->timePlayedCurGame;
-
-								for (int i=0;i<MAX_PLAYER;++i)
-								{
-									if (game->players[i])
-										bb_serverSend((char*)&playerStats, sizeof(net_svcl_player_update_stats), NET_SVCL_PLAYER_UPDATE_STATS, game->players[i]->babonetID);
-								}
-							}*/
-						}
-						else
-						{
-							console->add(CString("[Auth] %s failed authentication", game->players[id]->name.s), true);
-							//// If this is a match server, kick unauthorized players
-							//bb_serverDisconnectClient(game->players[id]->babonetID);
-							//ZEVEN_SAFE_DELETE(game->players[id]);
-							//net_svcl_player_disconnect playerDisconnect;
-							//playerDisconnect.playerID = (char)id;
-							//bb_serverSend((char*)&playerDisconnect,sizeof(net_svcl_player_disconnect),NET_SVCL_PLAYER_DISCONNECT,0);
-						}
-
-					}
-
-					// We're done, delete it
-					delete *i;
-				}
-				else
-					stillRunning.push_back(*i);
-			}
-
-			authRequests.swap(stillRunning);
-		}
-
-		if (reportUploads.size() > 0)
-		{
-			std::vector<CCurl*>::iterator it = reportUploads.begin();
-			for (; it != reportUploads.end(); )
-			{
-				if ((*it)->isRunning() == false)
-				{
-					std::string response = (*it)->response();
-					if (!response.empty() && response.size() <= 480)
-						console->add(CString("\x2Report Sent: %s", response.c_str()), true);
-					else
-						console->add("\x2Report Failure: Sent, but no response recieved.", true);
-					
-					delete (*it);
-					it = reportUploads.erase(it);
-				}
-				else
-					it++;
-			}
 		}
 
 		if( gameVar.sv_gamePublic && master )
@@ -969,18 +880,15 @@ void Server::update(float delay)
 					updateStatsCache();
 
 					ReportGen repGen;
-					CUrlData data;
-					data.add("action", "report");
-
-					console->add("\x2Generating Report", true);
-					data.add("report", (char*)repGen.genReport().c_str(), CUrlData::BASE64);
-
-					for (size_t i = 0; i < reportUploadURLs.size(); i++)
+					std::string r = repGen.genReport();
+					console->add("\x2Match report (local console, first 400 bytes):", true);
 					{
-						console->add(CString("\x2Sending Report to: %s", reportUploadURLs[i].c_str()), true);
-						CCurl* request = new CCurl((char*)reportUploadURLs[i].c_str(), data.get());
-						reportUploads.push_back(request);
-						request->start();
+						const size_t cap = 400;
+						size_t n = r.size() < cap ? r.size() : cap;
+						char buf[401];
+						memcpy(buf, r.c_str(), n);
+						buf[n] = '\0';
+						console->add(CString("\x2%s", buf), true);
 					}
 				}
 				clearStatsCache();
@@ -1021,6 +929,16 @@ void Server::update(float delay)
 			{
 				nbPlayers++;
 
+				// Still in map/handshake join path — do not run TCP heartbeat pings (avoids
+				// "no respond since 3sec" while client has not finished loading / menu).
+				if (game->players[i]->status == PLAYER_STATUS_LOADING)
+					continue;
+				// Team pick / waiting to spawn: server marks player DEAD but client may still
+				// be in intro/menu — skip heartbeat until they have spawned at least once.
+				if (game->players[i]->status == PLAYER_STATUS_DEAD &&
+					game->players[i]->timeAlive < EPSILON)
+					continue;
+
 				if (!game->players[i]->waitForPong)
 				{
 					// On est pret �lui envoyer un ping?
@@ -1032,7 +950,8 @@ void Server::update(float delay)
 
 						// On lui send son pingdlidou
 						net_svcl_ping ping;
-						ping.playerID = char(i); // Ici on s'en occupe pas du ID
+						memset(&ping, 0, sizeof(ping));
+						ping.playerID = char(i);
 						bb_serverSend((char*)&ping,sizeof(net_svcl_ping),NET_SVCL_PING,game->players[i]->babonetID);
 						continue;
 					}
@@ -1063,6 +982,9 @@ void Server::update(float delay)
 						if( master ) master->RA_DisconnectedPlayer( textColorLess(game->players[i]->name).s, game->players[i]->playerIP, (long)game->players[i]->playerID);
 						bb_serverDisconnectClient(game->players[i]->babonetID);
 						console->add("\x3> Disconnecting client, no respond since 3sec", true);
+						if (gameVar.c_netlog)
+							console->add(CString("server> [net] kick slot=%i name=\"%s\" reason=no_PONG (waitForPong=%i currentPingFrame=%i status=%i)",
+								i, game->players[i]->name.s, (int)game->players[i]->waitForPong, game->players[i]->currentPingFrame, (int)game->players[i]->status), true);
 						ZEVEN_SAFE_DELETE(game->players[i]);
 						net_svcl_player_disconnect playerDisconnect;
 						playerDisconnect.playerID = (char)i;
@@ -1356,11 +1278,22 @@ void Server::update(float delay)
 		}
 
 		// Open map
-        if (mapTransfers[i].mapName != "") {
+            if (mapTransfers[i].mapName != "") {
             CString filename("main/maps/%s.bvm", mapTransfers[i].mapName.s);
             FILE* fic = fopen(filename.s, "rb");
 
-            if (fic)
+            if (!fic)
+            {
+				if (!mapTransfers[i].mapXferOpenFailLogged)
+				{
+					mapTransfers[i].mapXferOpenFailLogged = true;
+					console->add(CString("\x4> MAP_TRANSFER cannot open \"%s\" for bbnetID=%lu (client stays on Connecting). "
+						"Install that map under Content/main/maps/ or change rotation.", filename.s, (unsigned long)mapTransfers[i].uniqueClientID), true);
+				}
+				bb_serverDisconnectClient(mapTransfers[i].uniqueClientID);
+				// Do not keep this transfer; otherwise the client waits forever for chunks.
+            }
+            else
             {
                 net_svcl_map_chunk chunk;
 
@@ -1380,9 +1313,8 @@ void Server::update(float delay)
                     mapTransfers[i].chunkNum++;
                     temp.push_back(mapTransfers[i]);
                 }
+                fclose(fic);
             }
-
-            fclose(fic);
         }
 	}
 

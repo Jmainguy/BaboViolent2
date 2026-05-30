@@ -21,15 +21,14 @@
 #include "Server.h"
 #include "netPacket.h"
 #include "Console.h"
+#include "GameVar.h"
 #include "Scene.h"
-#include "CCurl.h"
 #include <stdio.h>
 #include <string.h>
-extern Scene* scene;
-
 #if defined(_PRO_)
-	#include "md5.h"
+#include "md5.h"
 #endif
+extern Scene* scene;
 
 using std::min;
 
@@ -40,6 +39,9 @@ using std::min;
 void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 {
     int i;
+	if (gameVar.c_netlog)
+		console->add(CString("server> [net] recv typeId=%i bbnetID=%lu", typeID, (unsigned long)bbnetID), true);
+
 	switch (typeID)
 	{
 	case NET_CLSV_MAP_REQUEST:
@@ -51,6 +53,10 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
             mtrans.chunkNum = 0;
 			mtrans.mapName = request.mapName;
 			mtrans.uniqueClientID = bbnetID;
+			mtrans.mapXferOpenFailLogged = false;
+
+			if (gameVar.c_netlog)
+				console->add(CString("server> [net] MAP_REQUEST map=\"%s\" bbnetID=%lu", request.mapName, (unsigned long)bbnetID), true);
 
 			// Add to list, server will send chunks on each update
 			mapTransfers.push_back(mtrans);
@@ -307,14 +313,28 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 			net_clsv_gameversion_accepted gameVersionAccepted;
 			memcpy(&gameVersionAccepted, buffer, sizeof(net_clsv_gameversion_accepted));
 
+			if (gameVar.c_netlog)
+				console->add(CString("server> [net] GAMEVERSION_ACCEPTED playerId=%i bbnetID=%lu sv_password=%s",
+					(int)(signed char)gameVersionAccepted.playerID, (unsigned long)bbnetID,
+					gameVar.sv_password.len() > 0 ? "set" : "empty"), true);
+
 			if (game->players[gameVersionAccepted.playerID])
 			{
 				if(gameVar.sv_password != "" && CString("%s", gameVersionAccepted.password) != gameVar.sv_password)
 				{
+					if (gameVar.c_netlog)
+						console->add(CString("server> [net] join password mismatch for playerId=%i (disconnecting)", (int)(signed char)gameVersionAccepted.playerID), true);
 					bb_serverDisconnectClient(game->players[gameVersionAccepted.playerID]->babonetID);
 					break;
 				}
 
+				if (gameVar.c_netlog)
+					console->add(CString("server> [net] handshake OK -> sending SERVER_INFO map=\"%s\" to bbnetID=%lu",
+						game->mapName.s, (unsigned long)game->players[gameVersionAccepted.playerID]->babonetID), true);
+
+				// Join handshake completed: reset ping watchdog so we do not inherit pre-accept counts.
+				game->players[gameVersionAccepted.playerID]->waitForPong = false;
+				game->players[gameVersionAccepted.playerID]->currentPingFrame = 0;
 				// On envoi �CE player l'info sur la game
 				net_svcl_server_info serverInfo;
 				serverInfo.mapSeed = 0; // Pour l'instant on mettra rien (on va mettre le non dla map bientot)
@@ -434,6 +454,11 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 					bb_serverSend((char*)&flagEnum, sizeof(net_svcl_flag_enum), NET_SVCL_FLAG_ENUM, game->players[gameVersionAccepted.playerID]->babonetID);
 				}
 			}
+			else if (gameVar.c_netlog)
+			{
+				console->add(CString("server> [net] GAMEVERSION_ACCEPTED: no player slot for id=%i (bbnetID=%lu)",
+					(int)(signed char)gameVersionAccepted.playerID, (unsigned long)bbnetID), true);
+			}
 			break;
 		}
 	case NET_CLSV_SVCL_PLAYER_INFO:
@@ -454,33 +479,7 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 				// broadcast the info at remote admins
 				if( master ) master->RA_NewPlayer( textColorLess(playerInfo.playerName).s, playerInfo.playerIP, (long)playerInfo.playerID );
 
-#if defined(_PRO_)
-				// if we are using the pro client/serv, generate a new hash query
-				m_checksumQueries.push_back( new CChecksumQuery(playerInfo.playerID,bbnetID) );
-#endif
-
-
-				// Password is transfered sans null terminator, already MD5'd
-				char pw[33];
-				memcpy(pw, playerInfo.password, 32);
-				pw[32] = '\0';
-
-				// Prepare data string
-				CUrlData data;
-				data.add("action", "auth");
-				data.add("username", CString("%s",playerInfo.username).s);
-				data.add("password", CString("%s", pw).s);
-				data.add("location", "in_game");
-				data.add("server_name", gameVar.sv_gameName.s);
-				data.add("server_ip", bb_getMyIP());
-				data.add("server_port", gameVar.sv_port);
-
-				console->add("[Auth] Sending request");
-
-				// Send a new authorization request
-				CCurl* request = new CCurl(gameVar.db_accountServer, data.get());
-				authRequests.push_back(request);
-				request->start(new int(playerInfo.playerID));
+				// Optional PRO checksum + HTTP account auth removed for LAN / open-source builds (avoids hangs and dead AccountURL).
 				if( gameVar.sv_gamePublic )
 				{
 					// test to see if we need to ask master if the guy is banned...legal issues
@@ -532,6 +531,8 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 				if( CachedIndex == 50 ) CachedIndex = 0;
 
 			}
+			else if (gameVar.c_netlog)
+				console->add(CString("server> [net] PLAYER_INFO for unknown playerId=%i", (int)(signed char)playerInfo.playerID), true);
 			break;
 		}
 	case NET_SVCL_PLAY_SOUND:
@@ -643,6 +644,8 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 						cacheStats(game->players[teamRequest.playerID], oldTeam);
 						game->players[teamRequest.playerID]->reinit();
 					}
+					game->players[teamRequest.playerID]->waitForPong = false;
+					game->players[teamRequest.playerID]->currentPingFrame = 0;
 					teamRequest.teamRequested = newTeam;
 					// On l'envoit �tout le monde, (si � chang�
 					bb_serverSend((char*)&teamRequest, sizeof(net_clsv_svcl_team_request), NET_CLSV_SVCL_TEAM_REQUEST, 0);
@@ -654,14 +657,21 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 		{
 			net_clsv_pong pong;
 			memcpy(&pong, buffer, sizeof(net_clsv_pong));
-			if (game->players[pong.playerID])
+			const int pid = (unsigned char)pong.playerID;
+			if (pid >= 0 && pid < MAX_PLAYER && game->players[pid])
 			{
-				if (game->players[pong.playerID]->waitForPong)
+				if (game->players[pid]->waitForPong)
 				{
-					game->players[pong.playerID]->waitForPong = false;
-					game->players[pong.playerID]->ping = game->players[pong.playerID]->currentPingFrame;
+					game->players[pid]->waitForPong = false;
+					game->players[pid]->ping = game->players[pid]->currentPingFrame;
+					if (gameVar.c_netlog)
+						console->add(CString("server> [net] PONG playerId=%i pingFrames=%i", pid, game->players[pid]->ping), true);
 				}
+				else if (gameVar.c_netlog)
+					console->add(CString("server> [net] PONG playerId=%i (ignored, not waiting)", pid), true);
 			}
+			else if (gameVar.c_netlog)
+				console->add(CString("server> [net] PONG bad playerId=%i bbnetID=%lu", pid, (unsigned long)bbnetID), true);
 			break;
 		}
 	case NET_CLSV_SPAWN_REQUEST:
@@ -800,59 +810,8 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 					if (game->players[playerCoordFrame.playerID]->babonetID == playerCoordFrame.babonetID)
 					{
 						game->players[playerCoordFrame.playerID]->timeIdle = 0.0f;
-						//--- We compare the time between packet (important against cheating)
-						if (game->players[playerCoordFrame.playerID]->lastFrame == 0)
-						{
-							game->players[playerCoordFrame.playerID]->lastFrame = playerCoordFrame.frameID;
-						}
-						game->players[playerCoordFrame.playerID]->currentFrame = playerCoordFrame.frameID;
-						if (game->players[playerCoordFrame.playerID]->frameSinceLast >= 90)
-						{
-							// Check for acceleration hack
-							CVector3f vel;
-							vel[0] = (float)playerCoordFrame.vel[0] / 10.0f;
-							vel[1] = (float)playerCoordFrame.vel[1] / 10.0f;
-							vel[2] = (float)playerCoordFrame.vel[2] / 10.0f;
-
-							//console->add( CString( "vel : %f  %f  %f" , vel[0] , vel[1] , vel[2] ), true );
-
-							if ( (game->players[playerCoordFrame.playerID]->currentFrame - game->players[playerCoordFrame.playerID]->lastFrame > game->players[playerCoordFrame.playerID]->frameSinceLast + 5) ||
-								  vel.length() > 3.3f )
-							{
-								//--- Hey, on a 10 frame de plus que le server.. hacking???
-								game->players[playerCoordFrame.playerID]->speedHackCount++;
-
-								//printf("hackcount++\n");
-
-								//--- Apres 3 shot (9sec) BOUM ON LE KICK L'ENFANT DE PUTE
-								if (game->players[playerCoordFrame.playerID]->speedHackCount >= 3)
-								{
-									// ?????? Save stats to cache
-									//cacheStats(game->players[playerCoordFrame.playerID]);
-
-									//printf("anti hack count = 3\n");
-									//--- On envoit �tout le monde (y compris lui) quil essaye de speedhacking
-									//sayall(CString("Disconnecting %s (%s): Speed Hack Detected", game->players[playerCoordFrame.playerID]->name.s, game->players[playerCoordFrame.playerID]->playerIP));
-									if( master ) master->RA_DisconnectedPlayer( textColorLess(game->players[playerCoordFrame.playerID]->name).s, game->players[playerCoordFrame.playerID]->playerIP, (long)game->players[playerCoordFrame.playerID]->playerID);
-									bb_serverDisconnectClient(game->players[playerCoordFrame.playerID]->babonetID);
-									//console->add(CString("\x3server> POSSIBLE HACKER: %s (%s), Speed Hack", game->players[playerCoordFrame.playerID]->name.s, game->players[playerCoordFrame.playerID]->playerIP), true);
-									ZEVEN_SAFE_DELETE(game->players[playerCoordFrame.playerID]);
-									net_svcl_player_disconnect playerDisconnect;
-									playerDisconnect.playerID = (char)playerCoordFrame.playerID;
-									bb_serverSend((char*)&playerDisconnect,sizeof(net_svcl_player_disconnect),NET_SVCL_PLAYER_DISCONNECT,0);
-									return;
-								}
-							}
-							else
-							{
-								//--- Reset hacking count
-								game->players[playerCoordFrame.playerID]->speedHackCount = 0;
-							}
-
-							game->players[playerCoordFrame.playerID]->frameSinceLast = 0;
-							game->players[playerCoordFrame.playerID]->lastFrame = 0;
-							game->players[playerCoordFrame.playerID]->currentFrame = 0;
-						}
+						// Speed-hack kick disabled: frameID vs server tick desync on uncapped
+						// FPS (Linux) and vel threshold 3.3 vs client clamp 3.25 cause false kicks.
 						game->players[playerCoordFrame.playerID]->setCoordFrame(playerCoordFrame);
 
 						
@@ -1231,6 +1190,10 @@ void Server::recvPacket(char * buffer, int typeID, unsigned long bbnetID)
 		}
 
 #endif
+	default:
+		if (gameVar.c_netlog)
+			console->add(CString("server> [net] recv unhandled typeId=%i bbnetID=%lu", typeID, (unsigned long)bbnetID), true);
+		break;
 	}
 }
 

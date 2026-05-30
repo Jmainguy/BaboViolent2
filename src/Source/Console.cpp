@@ -24,12 +24,23 @@
 #include "CStatus.h"
 #endif
 #include "Scene.h"
+#include "GameVar.h"
+#include "baboNet.h"
 #include <algorithm>
+#include <cstdio>
 #include <string>
 
 #if defined(_PRO_)
 	#include "md5.h"
 #endif
+
+// Browser often leaves the port off for "127.0.0.1"; local dedicated listens on sv_port, not necessarily cl_port.
+static int defaultJoinGamePortForIP(CString ip)
+{
+	if (ip == "127.0.0.1" || ip == "localhost")
+		return gameVar.sv_port;
+	return gameVar.cl_port;
+}
 
 
 // Notre module principal
@@ -109,6 +120,13 @@ void Console::add(CString message, bool fromServer, bool isEvent)
 {
 #ifdef DEDICATED_SERVER
 	printf("%s\n", textColorLess(message).s);
+	fflush(stdout);
+#else
+	if (gameVar.c_stdoutlog || gameVar.c_netlog)
+	{
+		printf("%s\n", textColorLess(message).s);
+		fflush(stdout);
+	}
 #endif
 
 	// broadcast to potential remote admins
@@ -571,39 +589,34 @@ void Console::svChange(CString command)
 //
 // On output les messages dla net
 //
-void Console::debugBBNET(bool client,bool server)
+void Console::debugBBNET(bool client, bool server, unsigned int gameClientBabonetID)
 {
-/*	if(client)
+	if (!gameVar.c_debug && !gameVar.c_netlog)
+		return;
+
+	if (client && gameClientBabonetID != 0)
 	{
-		char *lastError = bb_clientGetLastError(uniqueClientID);
-		char *lastMessage = bb_clientGetLastMessage(uniqueClientID);
+		char *lastError = bb_clientGetLastError(gameClientBabonetID);
+		char *lastMessage = bb_clientGetLastMessage(gameClientBabonetID);
 
-		if(lastError && stricmp(lastError,""))
-		{
-			add(CString("Client Error : %s",lastError));
-		}
+		if (lastError && stricmp(lastError, ""))
+			add(CString("\x9> [bbnet client] %s", lastError));
 
-		if(lastMessage && stricmp(lastMessage,""))
-		{
-			add(CString("Client Message : %s",lastMessage));
-		}
+		if (lastMessage && stricmp(lastMessage, ""))
+			add(CString("\x9> [bbnet client] %s", lastMessage));
 	}
 
-	if(server)
+	if (server)
 	{
 		char *slastError = bb_serverGetLastError();
 		char *slastMessage = bb_serverGetLastMessage();
 
-		if(slastError && stricmp(slastError,""))
-		{
-			add(CString("Server Error : %s",slastError));
-		}
+		if (slastError && stricmp(slastError, ""))
+			add(CString("\x9> [bbnet server] %s", slastError));
 
-		if(slastMessage && stricmp(slastMessage,""))
-		{
-			add(CString("Server Message : %s",slastMessage));
-		}
-	}*/
+		if (slastMessage && stricmp(slastMessage, ""))
+			add(CString("\x9> [bbnet server] %s", slastMessage));
+	}
 }
 
 
@@ -632,11 +645,14 @@ void Console::sendCommand(CString commandLine, bool isAdmin, unsigned long bbnet
 	
 
 	commandLine.trim('\n');
+	commandLine.trim(' ');
 
 	CString tokenize = commandLine;
 
 	// On va chercher le premier token, ? va nous donner la commande
 	CString command = tokenize.getFirstToken(' ');
+	if (command.isNull() || command.len() == 0)
+		return;
 
 	// On fait un if sur toute les commandes possibles
 	if (command == "help" || command == "?")
@@ -787,7 +803,8 @@ void Console::sendCommand(CString commandLine, bool isAdmin, unsigned long bbnet
 		// On join une game en cours y??!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		CString IPAddress = tokenize.getFirstToken(' ');
 		int port = tokenize.getFirstToken(' ').toInt();
-		if (port == 0) port = 3333; // Try on the regular port
+		if (port == 0)
+			port = defaultJoinGamePortForIP(IPAddress);
 
 #ifndef DEDICATED_SERVER
 		//--- The rest of the token is the user + pass :)
@@ -1216,75 +1233,6 @@ void Console::sendCommand(CString commandLine, bool isAdmin, unsigned long bbnet
 		return;
 	}
 
-	if (command == "addreporturl")
-	{
-		if (scene->server)
-		{
-			CString url = tokenize.getFirstToken(' ');
-			if (url == "")
-				add("\x3> Invalid arguments", true);
-			else
-			{
-				if (std::find(scene->server->reportUploadURLs.begin(),
-						scene->server->reportUploadURLs.end(),
-						url.s) != scene->server->reportUploadURLs.end())\
-				{
-					add("\x3> URL already on list", true);
-				}
-				else
-				{
-					scene->server->reportUploadURLs.push_back(url.s);
-					CString str("\x3> URL '%s' added to list", url.s);
-					add(str, true);
-				}
-			}
-		}
-		return;
-	}
-
-	if (command == "removereporturl")
-	{
-		if (scene->server)
-		{
-			int id = tokenize.getFirstToken(' ').toInt();
-			if (id >= 0 && id < (int)scene->server->reportUploadURLs.size())
-			{
-				scene->server->reportUploadURLs.erase(scene->server->reportUploadURLs.begin() + id);
-				add("\x3> URL removed from list", true);
-			}
-			else
-			{
-				add("\x3> Invalid URL id", true);
-			}
-		}
-		return;
-	}
-
-	if (command == "removeallreporturls")
-	{
-		if (scene->server)
-		{
-			scene->server->reportUploadURLs.clear();
-			add("\x3> All report URLs removed", true);
-		}
-		return;
-	}
-
-	if (command == "listreporturls")
-	{
-		if (scene->server)
-		{
-			CString str("\x3> %d URLs on list", (int)scene->server->reportUploadURLs.size());
-			add(str, true);
-			for (int i = 0; i < (int)scene->server->reportUploadURLs.size(); i++)
-			{
-				CString str1("\x3 %d: %s", i, scene->server->reportUploadURLs[i].c_str());
-				add(str1, true);
-			}
-		}
-		return;
-	}
-
 	// approve players to join selected or all teams
 	if (command == "approveall")
 	{
@@ -1604,7 +1552,8 @@ void Console::sendCommand(CString commandLine, bool isAdmin, unsigned long bbnet
 		CString IPAddress = tokenize.getFirstToken(' ');
 		int port = tokenize.getFirstToken(' ').toInt();
 		CString password = tokenize;
-		if (port == 0) port = 3333; // Try on the regular port
+		if (port == 0)
+			port = defaultJoinGamePortForIP(IPAddress);
 		scene->join(IPAddress, port, password);
 		m_isActive = false;
 		return;
@@ -2369,7 +2318,7 @@ void Console::sendCommand(CString commandLine, bool isAdmin, unsigned long bbnet
 #endif
 
 
-	add(CString("\x3> Unkown command : \"%s\"", command.s));
+	add(CString("\x3> Unknown command : \"%s\"", command.s));
 	add(CString("\x3> Type \"?\" for commands list", command.s));
 	return;
 }

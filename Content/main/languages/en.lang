@@ -52,7 +52,7 @@ lang_counterBaboristC				COUNTER BABORIST
 lang_counterBaboristD				Red : plank the explosive on the bomb site. Blue : defend the bomb site
 
 lang_connectingC					CONNECTING
-lang_pressF10ToCancel				Press F10 to cancel
+lang_pressF10ToCancel				Press F10 or Esc to cancel
 
 lang_goesSpectator					%s\x8 goes spectator
 lang_joinBlueTeamP					%s\x1 joins blue team

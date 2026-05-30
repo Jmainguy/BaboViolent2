@@ -140,7 +140,7 @@ void CBrowser::updatePerso(float delay)
 				break;
 			}
 			CControl* gameRow = new CControl(lst_browseList, CVector2i(10, 10 + nbGames*30), CVector2i(676,30), "", this, "LABEL");
-			gameRow->customData = holdRow; // Voilà pour ça
+			gameRow->customData = holdRow; // Voilï¿½ pour ï¿½a
 	
 			CControl* Name = new CControl(gameRow, CVector2i(0, 5), CVector2i(350,20), holdRow->bv2Row->serverName, this, "LABEL");
 			CControl* Type = new CControl(gameRow, CVector2i(350, 5), CVector2i(150,20), gameType, this, "LABEL");
@@ -180,11 +180,10 @@ void CBrowser::updatePerso(float delay)
 		// Sort	
 		std::sort(lst_browseList->children.begin(), lst_browseList->children.end(), SPingSort());
 
-		// Set positions
-		for(unsigned int i = 2; i < lst_browseList->children.size(); ++i)
-		for(int i = 2; i < (int)lst_browseList->children.size(); ++i)
+		// Set positions (skip non-row children at indices 0ï¿½1)
+		for (int i = 2; i < (int)lst_browseList->children.size(); ++i)
 		{
-			lst_browseList->children[i]->localPos.y() = 10 + (i-2)*30;
+			lst_browseList->children[i]->localPos.y() = 10 + (i - 2) * 30;
 		}
 
 	}
@@ -237,7 +236,12 @@ void CBrowser::Click(CControl * control)
 			if (port != "")
 				console->sendCommand(CString("connect %s %i %s", ip.s, port.toInt(), txt_pw->text.s));
 			else
-				console->sendCommand(CString("connect %s %i %s", ip.s, gameVar.cl_port, txt_pw->text.s));
+			{
+				int joinPort = gameVar.cl_port;
+				if (ip == "127.0.0.1" || ip == "localhost")
+					joinPort = gameVar.sv_port;
+				console->sendCommand(CString("connect %s %i %s", ip.s, joinPort, txt_pw->text.s));
+			}
 		}
 	}
 	if (control == btn_refresh)
@@ -273,7 +277,7 @@ void CBrowser::DbClick(CControl * control)
 		//	menuManager.focusControl = 0;
 		//	menuManager.hoveringControl = 0;
 
-			//--- Bah, on launch ste game là !!!
+			//--- Bah, on launch ste game lï¿½ !!!
 			command = "connect ";
 			command += ((SBrowsableGame*)(control->customData))->bv2Row->ip;
 			command += " ";

@@ -28,6 +28,8 @@
 #include "Scene.h"
 #include "Console.h"
 #include <exception>
+#include <cstdlib>
+#include <cstring>
 #include "CMaster.h"
 #ifndef DEDICATED_SERVER
 	#include "CStatus.h"
@@ -55,12 +57,19 @@ bool fullscreen = false;
 
 char * bbNetVersion;
 
+// After main/bv2.cfg load: BV2_NETLOG=1 -> c_netlog; BV2_STDOUT_LOG=1 -> mirror client console to stdout.
+static void bv2ApplyNetlogFromEnv()
+{
+	const char* e = std::getenv("BV2_NETLOG");
+	if (e && e[0] != '\0' && std::strcmp(e, "0") != 0)
+		gameVar.c_netlog = true;
+	e = std::getenv("BV2_STDOUT_LOG");
+	if (e && e[0] != '\0' && std::strcmp(e, "0") != 0)
+		gameVar.c_stdoutlog = true;
+}
+
 #ifdef DEDICATED_SERVER
 bool quit = false;
-void dkwForceQuit()
-{
-	quit = true;
-}
 #else
 CVector2i mousePos_xbox;
 CVector2f mousePos_xboxVel;
@@ -490,6 +499,10 @@ int main(int argc, const char* argv[])
 	// PREMI�E CHOSE �FAIRE, on load les config
 	dksvarInit(&stringInterface);
 	dksvarLoadConfig("main/bv2.cfg");
+#ifndef DEDICATED_SERVER
+	gameVar.repairKeyBindings();
+#endif
+	bv2ApplyNetlogFromEnv();
 	dksvarSaveConfig("main/bv2.cfg"); // On cre8 le config file aussi
 
 	// On init nos DLL qui vont �re utilis�dans ce jeu
@@ -671,25 +684,35 @@ int main(int argc, const char* argv[])
 
 #else
 
+#if !defined(WIN32)
+#include <cstdio>
+#include <SDL.h>
+#endif
 
+#ifdef WIN32
+#define CLIENT_NOTIFY(msg) MessageBox(NULL, (msg), "Error", 0)
+#else
+#define CLIENT_NOTIFY(msg) fprintf(stderr, "%s\n", (msg))
+#endif
 
 //
 // Fonction principal
 //
-int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
-			HINSTANCE	hPrevInstance,				// Previous Instance
-			LPSTR		lpCmdLine,				// Command Line Parameters
-			int		nCmdShow)				// Window Show State
+static int RunGraphicalClient(const char* cmdLine)
 {
 	// PREMI�E CHOSE �FAIRE, on load les config
 	dksvarInit(&stringInterface);
 	dksvarLoadConfig("main/bv2.cfg");
+#ifndef DEDICATED_SERVER
+	gameVar.repairKeyBindings();
+#endif
+	bv2ApplyNetlogFromEnv();
 	dksvarSaveConfig("main/bv2.cfg"); // On cre8 le config file aussi
 
 	// On load tout suite le language utilis�par le joueur
 	if (!gameVar.isLanguageLoaded())
 	{
-		MessageBox(NULL, "Can not load language file\nTry deleting the config file.", "Error", 0);
+		CLIENT_NOTIFY("Can not load language file\nTry deleting the config file.");
 		return 0;
 	}
 
@@ -706,7 +729,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 	if (!dkwInit(gameVar.r_resolution[0], gameVar.r_resolution[1], gameVar.r_bitdepth, gameVar.lang_gameName.s, &mainLoopInterface, gameVar.r_fullScreen, gameVar.r_refreshRate)) 
 	{
 		char * error = dkwGetLastError();
-		MessageBox(NULL, error, "Error", 0);
+		CLIENT_NOTIFY(error);
 		return 0;
 	}
 
@@ -714,25 +737,28 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 	if (!dkiInit(dkwGetHandle()))
 	{
 		dkwShutDown();
-		MessageBox(NULL, "Error creating Input", "Error", 0);
+		CLIENT_NOTIFY("Error creating Input");
 		return 0;
 	}
 
+#ifdef WIN32
 	// Set single CPU usage
 	if(gameVar.cl_affinityMode > 0)
 	{
 		::SetProcessAffinityMask(::GetCurrentProcess(), 0x1);
 	}
+#endif
 
 	// On cr�notre API openGL (This does nothing anymore
 	if (!dkglCreateContext(dkwGetDC(), gameVar.r_bitdepth)) 
 	{
 		dkiShutDown();
 		dkwShutDown();
-		MessageBox(NULL, "Error creating openGL context", "Error", 0);
+		CLIENT_NOTIFY("Error creating openGL context");
 		return 0;
 	}
 
+#ifdef WIN32
 	// Restore system settings
 	if(gameVar.cl_affinityMode == 1)
 	{
@@ -741,6 +767,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 		::GetProcessAffinityMask(::GetCurrentProcess(), &procMask, &sysMask);
 		::SetProcessAffinityMask(::GetCurrentProcess(), sysMask);
 	}
+#endif
 
 	// On init les textures
 	dktInit();
@@ -759,7 +786,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 		dkiShutDown();
 		dkglShutDown();
 		dkwShutDown();
-		MessageBox(NULL, "Error creating fmod", "Error", 0);
+		CLIENT_NOTIFY("Error creating fmod");
 		return 0;
 	}
 
@@ -772,7 +799,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 		dkiShutDown();
 		dkglShutDown();
 		dkwShutDown();
-		MessageBox(NULL, "Error initiating baboNet", "Error", 0);
+		CLIENT_NOTIFY("Error initiating baboNet");
 		return 0;
 	}
 	bbNetVersion = bb_getVersion();
@@ -787,7 +814,7 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 		dkiShutDown();
 		dkglShutDown();
 		dkwShutDown();
-		MessageBox(NULL, "Wrong version of BaboNet\nReinstalling the game may resolve this prolem", "Error", 0);
+		CLIENT_NOTIFY("Wrong version of BaboNet\nReinstalling the game may resolve this prolem");
 		return 0;
 	}
 
@@ -807,9 +834,11 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 	// On cr�notre scene
 	scene = new Scene();
 
+#ifdef WIN32
 	ShowCursor(FALSE);
-
-
+#else
+	SDL_ShowCursor(SDL_DISABLE);
+#endif
 
 	#ifndef DEDICATED_SERVER
 		//check if we need to update to launcher
@@ -817,7 +846,9 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 	#endif
 
 	// check command line options
-	CString str = lpCmdLine;
+	CString str("");
+	if (cmdLine)
+		str = cmdLine;
 	if( str.len() > 1 )
 	{
 		console->sendCommand( str );
@@ -837,7 +868,11 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 	}*/
 
 
+#ifdef WIN32
 	ShowCursor(TRUE);
+#else
+	SDL_ShowCursor(SDL_ENABLE);
+#endif
 
 	// On efface la scene
 	delete scene;
@@ -873,6 +908,31 @@ int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
 	// Tout c'est bien pass� on retourne 0
 	return 0;
 }
+
+#ifdef WIN32
+int WINAPI WinMain(	HINSTANCE	hInstance,				// Instance
+			HINSTANCE	hPrevInstance,				// Previous Instance
+			LPSTR		lpCmdLine,				// Command Line Parameters
+			int		nCmdShow)				// Window Show State
+{
+	(void)hInstance;
+	(void)hPrevInstance;
+	(void)nCmdShow;
+	return RunGraphicalClient(lpCmdLine ? lpCmdLine : "");
+}
+#else
+int main(int argc, char* argv[])
+{
+	CString cmd("");
+	for (int i = 1; i < argc; ++i)
+	{
+		if (i > 1)
+			cmd += (char*)" ";
+		cmd += argv[i];
+	}
+	return RunGraphicalClient(cmd.s);
+}
+#endif
 
 #endif
 
