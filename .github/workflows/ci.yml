@@ -57,7 +57,7 @@ jobs:
             command -v x86_64-w64-mingw32-g++ || echo "Mingw cross-compiler missing"
             x86_64-w64-mingw32-g++ --version || true
           elif [[ "${{ matrix.platform }}" == "macos" ]]; then
-            echo "OSXCROSS_TARGET='$OSXCROSS_TARGET'"
+            echo "OSXCROSS_TARGET='${OSXCROSS_TARGET:-}'"
             if [[ -n "${OSXCROSS_TARGET:-}" ]]; then
               ls -la "$OSXCROSS_TARGET/bin" || true
               command -v o64-clang || command -v x86_64-apple-darwin-clang++ || echo "osxcross clang missing"

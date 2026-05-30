@@ -409,15 +409,21 @@ archive_dir() {
 	local label="$1"
 	local stagedir="$2"
 	local out="$DIST/${label}-${BV2_PLATFORM}-${BV2_ARCH}.${BV2_ARCHIVE}"
+	local payload_root="BaboViolent2"
+	local wrapper
 	rm -f "$out"
+	wrapper="$STAGE/.archive-wrap-${label}"
+	rm -rf "$wrapper"
+	mkdir -p "$wrapper/$payload_root"
+	cp -a "$stagedir"/. "$wrapper/$payload_root"/
 	case "$BV2_ARCHIVE" in
 		tar.gz)
-			tar -C "$stagedir" -czf "$out" .
+			tar -C "$wrapper" -czf "$out" "$payload_root"
 			;;
 		zip)
 			command -v zip >/dev/null || die "install zip"
 			(
-				cd "$stagedir" && zip -qr "$out" .
+				cd "$wrapper" && zip -qr "$out" "$payload_root"
 			)
 			;;
 		*) die "unsupported BV2_ARCHIVE=$BV2_ARCHIVE (use tar.gz or zip)" ;;
