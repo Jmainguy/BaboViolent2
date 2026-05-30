@@ -43,15 +43,13 @@ documentation and/or software.
 
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 using namespace std;
 
 #include "md5.h"
 using namespace RSA;
-#ifndef WIN32
-    #include <string.h>
-#endif
 
 
 

@@ -22,7 +22,7 @@
 #ifndef DEDICATED_SERVER
 	#include <windows.h>
 #ifndef _DX_
-	#include <gl/gl.h>
+	#include <GL/gl.h>
 #endif
 #endif
 #endif

@@ -209,6 +209,11 @@ set(BV2_COMMON_SOURCES
     ${src_thirdparty_brebisgl}
 )
 
+if(WIN32)
+    set(BV2_WIN32_LIBS ws2_32 iphlpapi winmm opengl32 glu32 gdi32 imm32 version ole32 oleaut32 setupapi)
+    list(APPEND libs ${BV2_WIN32_LIBS})
+endif()
+
 # Client (graphical)
 if(WIN32)
     add_executable(BaboViolent WIN32 ${BV2_COMMON_SOURCES})
@@ -254,12 +259,11 @@ target_include_directories(BaboMasterServer PRIVATE
     ${MASTERSERVER_SRC_DIR}
     ${CMAKE_SOURCE_DIR}/thirdparty/sqlite
 )
-target_compile_definitions(BaboMasterServer PRIVATE LINUX)
 set_target_properties(BaboMasterServer PROPERTIES CXX_STANDARD 11)
 find_package(Threads REQUIRED)
 target_link_libraries(BaboMasterServer PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
 if(WIN32)
-    target_link_libraries(BaboMasterServer PRIVATE ws2_32)
+    target_link_libraries(BaboMasterServer PRIVATE ws2_32 iphlpapi)
 else()
     target_compile_options(BaboMasterServer PRIVATE -Wno-deprecated-declarations)
 endif()

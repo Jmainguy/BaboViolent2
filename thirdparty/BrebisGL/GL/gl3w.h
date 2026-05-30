@@ -471,10 +471,10 @@ typedef enum {
 #if defined(_WIN32) && !defined(__CYGWIN__)
     #ifndef WIN32_LEAN_AND_MEAN
         #define WIN32_LEAN_AND_MEAN 1
-        #include <Windows.h>
+        #include <windows.h>
         #undef WIN32_LEAN_AND_MEAN
     #else
-        #include <Windows.h>
+        #include <windows.h>
     #endif
 #endif
 

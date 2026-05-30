@@ -23,8 +23,9 @@
 #include <fcntl.h>
 
 #ifdef WIN32
-	#define amax max
-	#include "Winsock2.h"
+	#include <algorithm>
+	#define amax std::max
+	#include <winsock2.h>
 	#include "ws2tcpip.h"
 #else
 	#include "LinuxHeader.h"

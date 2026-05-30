@@ -101,8 +101,8 @@ DLL_API(bool)			dkoSphereIntersection(unsigned int modelID, float *p1, float *p2
 
 #include <windows.h>
 #ifndef _DX_
-#include <gl/gl.h>
-#include <gl/glu.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
 #include "glext.h"
 #endif
 #endif

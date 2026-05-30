@@ -2,7 +2,7 @@
 #define _UDPPACKET_H
 
 #ifdef WIN32
-	#include <Memory.h>
+	#include <cstring>
 #else
 	#include "memory.h"
 #endif

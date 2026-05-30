@@ -76,7 +76,8 @@
 
 #ifdef WIN32
 
-	#define amax max	//by-pass an STL bug on linux
+	#include <algorithm>
+	#define amax std::max	// NOMINMAX-safe (MinGW / MSVC)
 	
 	#ifndef DLL_EXPORTS
 		#define BBNET_DLL_API(p) __declspec(dllexport) p

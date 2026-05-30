@@ -23,7 +23,7 @@
 #define PACKET_H
 
 #ifdef WIN32
-	#include <Memory.h>
+	#include <cstring>
 	#include "winsock2.h"
 #else
 	#include "LinuxHeader.h"

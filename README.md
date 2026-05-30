@@ -109,7 +109,7 @@ The client and dedicated code use **`CMaster::GetMasterInfos()`** (`src/Game/Mas
 
 **Local / self-hosted master:** insert or update **`MasterServers`** so `atoi(port) - 1000` equals your master’s listen port (e.g. for port **10207**, the stored port column should be **11207**). That overrides the public default for that install.
 
-Linux zips omit **`bv2.db`**, so a dedicated started with **`./run.sh CTF`** uses the public default. If that host is unreachable you may see **`connect() failed, errno = 101`**. Point the game at your master (same machine: **`127.0.0.1`**, LAN: your master host IP, e.g. **`192.168.x.x`**):
+Release packages omit **`bv2.db`**, so a dedicated started with **`./run.sh CTF`** uses the public default. If that host is unreachable you may see **`connect() failed, errno = 101`**. Point the game at your master (same machine: **`127.0.0.1`**, LAN: your master host IP, e.g. **`192.168.x.x`**):
 
 ```bash
 CONTENT_DIR="$HOME/bv2-ded/Content" ./scripts/write-bv2-db.sh 192.168.1.10
@@ -145,3 +145,58 @@ Same **cwd** rules; optional SDL2_mixer system libraries at runtime when built w
 | Master listen port (as shipped in sources) | TCP **10207** (`cNetManager.cpp`) |
 
 For original commercial assets and historical context, see `Content/README.txt` and https://www.rndlabs.ca/ .
+
+---
+
+## CI and releases
+
+**CI** (`.github/workflows/ci.yml`) builds all three targets on **`ubuntu-latest`** for **Linux** (native), **Windows** (MinGW-w64 cross-compile), and **macOS** (osxcross cross-compile). Each platform produces three archives uploaded as workflow artifacts:
+
+| Package | Contents |
+|---------|----------|
+| `BaboViolent-client-<os>-<arch>.tar.gz` / `.zip` | Client binary, `Content/`, launcher |
+| `BaboViolent-dedicated-<os>-<arch>.tar.gz` / `.zip` | Dedicated binary, `Content/`, launcher |
+| `BaboMasterServer-<os>-<arch>.tar.gz` / `.zip` | Master binary, `master.db`, `web.db`, bootstrap SQL |
+
+Linux and macOS ship **`.tar.gz`**; Windows ships **`.zip`**. Unpack into an empty directory and run `./run.sh` (or `run.bat` on Windows).
+
+### Automated releases (release-please)
+
+**[release-please](https://github.com/googleapis/release-please)** (`.github/workflows/release-please.yml`) watches **`modern`** and **`main`** for [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Commit prefix | Version bump |
+|---------------|--------------|
+| `fix:` | patch |
+| `feat:` | minor |
+| `feat!:` or `BREAKING CHANGE:` in body | major |
+
+On each qualifying push it opens or updates a **Release PR** that bumps `.github/.release-please-manifest.json`, updates **`CHANGELOG.md`**, and prepares the next tag (e.g. `v0.1.0`).
+
+**To ship a release:** merge the Release PR. release-please creates the GitHub Release and tag; **`.github/workflows/release.yml`** then builds all nine platform packages and uploads them to that release.
+
+Example commit messages:
+
+```text
+feat: add FFA launch script
+fix: ignore speed-hack kick on dedicated server
+feat!: change default master listen port
+```
+
+**Local packaging** (native Linux build, or cross-build via `scripts/ci-build.sh`):
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target BaboViolent BaboViolentDedicated BaboMasterServer -j
+BV2_PLATFORM=linux ./scripts/package-release.sh    # dist/*.tar.gz
+
+# Cross-compile from Linux (same as CI):
+sudo apt-get install g++-mingw-w64-x86-64 mingw-w64-tools   # Windows
+BV2_PLATFORM=windows BUILD=build-windows ./scripts/ci-build.sh
+BV2_PLATFORM=windows BUILD=build-windows ./scripts/package-release.sh
+
+# macOS cross requires osxcross (see mbround18/setup-osxcross); CI installs it automatically.
+BV2_PLATFORM=macos BUILD=build-macos ./scripts/ci-build.sh
+BV2_PLATFORM=macos BUILD=build-macos ./scripts/package-release.sh
+```
+
+Legacy Linux helper: `./scripts/package-linux-distributions.sh` (same as `BV2_PLATFORM=linux`).

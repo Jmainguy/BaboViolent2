@@ -25,8 +25,8 @@
 #ifndef DEDICATED_SERVER
 #ifndef _DX_
 	#include <windows.h>
-	#include <gl/gl.h>
-	#include <gl/glu.h>
+	#include <GL/gl.h>
+	#include <GL/glu.h>
 #endif
 #endif
 #else
