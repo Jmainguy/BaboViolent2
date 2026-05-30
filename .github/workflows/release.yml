@@ -22,9 +22,9 @@ jobs:
       matrix:
         include:
           - platform: linux
-            archive: tar.gz
+            archive: zip
           - platform: macos
-            archive: tar.gz
+            archive: zip
           - platform: windows
             archive: zip
 

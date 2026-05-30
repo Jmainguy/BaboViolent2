@@ -288,8 +288,12 @@ write_run_master_unix() {
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
-export LD_LIBRARY_PATH="$DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export DYLD_LIBRARY_PATH="$DIR/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+# Prefer system runtime libs for compatibility. Only fall back to bundled libs
+# when ldd reports missing dependencies, or when explicitly requested.
+if [[ "${BV2_FORCE_BUNDLED_LIBS:-0}" == "1" ]] || ldd "$DIR/bin/BaboMasterServer" 2>/dev/null | grep -q "not found"; then
+	export LD_LIBRARY_PATH="$DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+	export DYLD_LIBRARY_PATH="$DIR/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+fi
 exec "$DIR/bin/BaboMasterServer" "$@"
 EOF
 	chmod +x "$d/run.sh"
@@ -313,8 +317,12 @@ write_run_game_unix() {
 #!/usr/bin/env bash
 set -euo pipefail
 DIR="\$(cd "\$(dirname "\$0")" && pwd)"
-export LD_LIBRARY_PATH="\$DIR/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
-export DYLD_LIBRARY_PATH="\$DIR/lib\${DYLD_LIBRARY_PATH:+:\$DYLD_LIBRARY_PATH}"
+# Prefer system runtime libs for compatibility. Only fall back to bundled libs
+# when ldd reports missing dependencies, or when explicitly requested.
+if [[ "\${BV2_FORCE_BUNDLED_LIBS:-0}" == "1" ]] || ldd "\$DIR/bin/$exe" 2>/dev/null | grep -q "not found"; then
+	export LD_LIBRARY_PATH="\$DIR/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+	export DYLD_LIBRARY_PATH="\$DIR/lib\${DYLD_LIBRARY_PATH:+:\$DYLD_LIBRARY_PATH}"
+fi
 cd "\$DIR/Content" || { echo "missing Content/ next to run.sh" >&2; exit 1; }
 exec "\$DIR/bin/$exe" "\$@"
 EOF
