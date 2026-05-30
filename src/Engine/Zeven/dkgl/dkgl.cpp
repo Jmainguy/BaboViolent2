@@ -26,6 +26,7 @@ static SDL_GLContext glContext = nullptr;
 
 
 #include <algorithm>
+#include <cmath>
 #include <memory.h>
 
 #define TORAD 0.01745329251994329576923690768489f
