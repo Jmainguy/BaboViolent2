@@ -109,7 +109,7 @@ list(APPEND includes PUBLIC
     ./src/Zeven/API/
 )
 
-if (LINUX)
+if (UNIX)
     list(APPEND includes PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/compat/linux
     )
