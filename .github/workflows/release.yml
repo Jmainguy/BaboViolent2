@@ -23,8 +23,6 @@ jobs:
         include:
           - platform: linux
             archive: zip
-          - platform: macos
-            archive: zip
           - platform: windows
             archive: zip
 
@@ -32,24 +30,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Setup osxcross (macOS cross)
-        if: matrix.platform == 'macos'
-        uses: mbround18/setup-osxcross@v1
-        with:
-          osx-version: "12.3"
-
-      - name: Resolve osxcross root (macOS cross)
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cxx="$(command -v o64-clang++ || command -v x86_64-apple-darwin-clang++)"
-          root="$(cd "$(dirname "$cxx")/.." && pwd)"
-          echo "Detected osxcross CXX: $cxx"
-          echo "Detected OSXCROSS_TARGET: $root"
-          [[ -d "$root/SDK" ]] || { echo "error: expected SDK dir under $root" >&2; exit 1; }
-          echo "OSXCROSS_TARGET=$root" >> "$GITHUB_ENV"
 
       - name: Install build dependencies
         run: |
