@@ -44,7 +44,7 @@ static void createViewMatrix(const float position[3], const float target[3], con
         up[2] * R2[0] - up[0] * R2[2],
         up[0] * R2[1] - up[1] * R2[0]
     };
-    float len = std::sqrtf(R0[0] * R0[0] + R0[1] * R0[1]);
+    float len = std::sqrt(R0[0] * R0[0] + R0[1] * R0[1]);
     R0[0] /= len;
     R0[1] /= len;
 
@@ -83,9 +83,9 @@ static void createViewMatrix(const float position[3], float angleX, float angleZ
 {
     // Normalized direction
     float R2[3] = {
-        -std::sinf(angleZ * TORAD) * std::cosf(angleX * TORAD),
-        -std::cosf(angleZ * TORAD) * std::cosf(angleX * TORAD),
-        -std::sinf(angleX * TORAD)
+        -std::sin(angleZ * TORAD) * std::cos(angleX * TORAD),
+        -std::cos(angleZ * TORAD) * std::cos(angleX * TORAD),
+        -std::sin(angleX * TORAD)
     };
 
     float R0[3] = {
@@ -93,7 +93,7 @@ static void createViewMatrix(const float position[3], float angleX, float angleZ
         1 * R2[0],
         0
     };
-    float len = std::sqrtf(R0[0] * R0[0] + R0[1] * R0[1]);
+    float len = std::sqrt(R0[0] * R0[0] + R0[1] * R0[1]);
     R0[0] /= len;
     R0[1] /= len;
 
@@ -866,69 +866,69 @@ void drawSphere(GLdouble radius, GLint slices, GLint stacks, GLenum topology)
 
             glTexCoord2f((float)(i) / (float)slices, (float)(j) / (float)stacks);
             glNormal3f(
-                std::cosf(angleZ0) * std::cosf(angleX0),
-                std::sinf(angleZ0) * std::cosf(angleX0),
-                std::sinf(angleX0)
+                std::cos(angleZ0) * std::cos(angleX0),
+                std::sin(angleZ0) * std::cos(angleX0),
+                std::sin(angleX0)
             );
             glVertex3f(
-                std::cosf(angleZ0) * std::cosf(angleX0) * (float)radius,
-                std::sinf(angleZ0) * std::cosf(angleX0) * (float)radius,
-                std::sinf(angleX0) * (float)radius);
+                std::cos(angleZ0) * std::cos(angleX0) * (float)radius,
+                std::sin(angleZ0) * std::cos(angleX0) * (float)radius,
+                std::sin(angleX0) * (float)radius);
 
             glTexCoord2f((float)(i) / (float)slices, (float)(j + 1) / (float)stacks);
             glNormal3f(
-                std::cosf(angleZ0) * std::cosf(angleX1),
-                std::sinf(angleZ0) * std::cosf(angleX1),
-                std::sinf(angleX1)
+                std::cos(angleZ0) * std::cos(angleX1),
+                std::sin(angleZ0) * std::cos(angleX1),
+                std::sin(angleX1)
             );
             glVertex3f(
-                std::cosf(angleZ0) * std::cosf(angleX1) * (float)radius,
-                std::sinf(angleZ0) * std::cosf(angleX1) * (float)radius,
-                std::sinf(angleX1) * (float)radius);
+                std::cos(angleZ0) * std::cos(angleX1) * (float)radius,
+                std::sin(angleZ0) * std::cos(angleX1) * (float)radius,
+                std::sin(angleX1) * (float)radius);
 
             glTexCoord2f((float)(i + 1) / (float)slices, (float)(j + 1) / (float)stacks);
             glNormal3f(
-                std::cosf(angleZ1) * std::cosf(angleX1),
-                std::sinf(angleZ1) * std::cosf(angleX1),
-                std::sinf(angleX1)
+                std::cos(angleZ1) * std::cos(angleX1),
+                std::sin(angleZ1) * std::cos(angleX1),
+                std::sin(angleX1)
             );
             glVertex3f(
-                std::cosf(angleZ1) * std::cosf(angleX1) * (float)radius,
-                std::sinf(angleZ1) * std::cosf(angleX1) * (float)radius,
-                std::sinf(angleX1) * (float)radius);
+                std::cos(angleZ1) * std::cos(angleX1) * (float)radius,
+                std::sin(angleZ1) * std::cos(angleX1) * (float)radius,
+                std::sin(angleX1) * (float)radius);
 
             glTexCoord2f((float)(i) / (float)slices, (float)(j) / (float)stacks);
             glNormal3f(
-                std::cosf(angleZ0) * std::cosf(angleX0),
-                std::sinf(angleZ0) * std::cosf(angleX0),
-                std::sinf(angleX0)
+                std::cos(angleZ0) * std::cos(angleX0),
+                std::sin(angleZ0) * std::cos(angleX0),
+                std::sin(angleX0)
             );
             glVertex3f(
-                std::cosf(angleZ0) * std::cosf(angleX0) * (float)radius,
-                std::sinf(angleZ0) * std::cosf(angleX0) * (float)radius,
-                std::sinf(angleX0) * (float)radius);
+                std::cos(angleZ0) * std::cos(angleX0) * (float)radius,
+                std::sin(angleZ0) * std::cos(angleX0) * (float)radius,
+                std::sin(angleX0) * (float)radius);
 
             glTexCoord2f((float)(i + 1) / (float)slices, (float)(j + 1) / (float)stacks);
             glNormal3f(
-                std::cosf(angleZ1) * std::cosf(angleX1),
-                std::sinf(angleZ1) * std::cosf(angleX1),
-                std::sinf(angleX1)
+                std::cos(angleZ1) * std::cos(angleX1),
+                std::sin(angleZ1) * std::cos(angleX1),
+                std::sin(angleX1)
             );
             glVertex3f(
-                std::cosf(angleZ1) * std::cosf(angleX1) * (float)radius,
-                std::sinf(angleZ1) * std::cosf(angleX1) * (float)radius,
-                std::sinf(angleX1) * (float)radius);
+                std::cos(angleZ1) * std::cos(angleX1) * (float)radius,
+                std::sin(angleZ1) * std::cos(angleX1) * (float)radius,
+                std::sin(angleX1) * (float)radius);
 
             glTexCoord2f((float)(i + 1) / (float)slices, (float)(j) / (float)stacks);
             glNormal3f(
-                std::cosf(angleZ1) * std::cosf(angleX0),
-                std::sinf(angleZ1) * std::cosf(angleX0),
-                std::sinf(angleX0)
+                std::cos(angleZ1) * std::cos(angleX0),
+                std::sin(angleZ1) * std::cos(angleX0),
+                std::sin(angleX0)
             );
             glVertex3f(
-                std::cosf(angleZ1) * std::cosf(angleX0) * (float)radius,
-                std::sinf(angleZ1) * std::cosf(angleX0) * (float)radius,
-                std::sinf(angleX0) * (float)radius);
+                std::cos(angleZ1) * std::cos(angleX0) * (float)radius,
+                std::sin(angleZ1) * std::cos(angleX0) * (float)radius,
+                std::sin(angleX0) * (float)radius);
         }
     }
     glEnd();
