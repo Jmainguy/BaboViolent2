@@ -37,6 +37,10 @@ case "$BV2_PLATFORM" in
 		TOOLCHAIN="$ROOT/cmake/toolchains/osxcross-x86_64.cmake"
 		SDK_VER="${OSXCROSS_SDK_VERSION:-12.3}"
 		CMAKE_EXTRA+=("-DOSXCross_SDK_VERSION=${SDK_VER}")
+		# SDL enables -Werror=declaration-after-statement when supported; this
+		# breaks Objective-C sources under osxcross clang. Keep macOS CI permissive.
+		CMAKE_EXTRA+=(-DHAVE_GCC_WERROR_DECLARATION_AFTER_STATEMENT=FALSE)
+		CMAKE_EXTRA+=(-DHAVE_GCC_WDECLARATION_AFTER_STATEMENT=FALSE)
 		[[ -n "${OSXCROSS_TARGET:-}" ]] || {
 			echo "error: OSXCROSS_TARGET not set (run setup-osxcross in CI first)" >&2
 			exit 1
