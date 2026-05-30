@@ -34,9 +34,11 @@
 #define		CACHE_LIST_REMOTE	1019	// tell the master we want the list of cached list of remote server
 #define		CACHE_LIST_PLAYER	1021	// received along with data of cached players
 #define		CACHE_LIST_PLAYER_END	1022	// remote server -> master, no more players in cache
-#define		CACHE_LIST_REQUEST_CANCEL	1023	// client -> master, cancel request
+#define	CACHE_LIST_REQUEST_CANCEL	1023	// client -> master, cancel request
 
-#define		CLIENT_HASH			1024
+#include "../../Version.h"
+
+#define	CLIENT_HASH			1024
 
 #define		CREATE_ACCOUNT		1025
 #define		DELETE_ACCOUNT		1026
@@ -271,7 +273,7 @@
 	//struct typeID 999
 	struct stBV2list
 	{
-		char	Version[5]; //exemple :  2.02  + '\0'
+		char	Version[BV2_VERSION_BUF_SIZE]; //e.g.: "2.11.0" + '\0'
 	};
 
 	
@@ -304,15 +306,13 @@
 		unsigned short		flags;						//NUMERIC
 		char			gameType;					//NUMERIC
 		unsigned short		ServerID;					//if server is REGISTERED, put ID here, else, leave to 0
-		char			Version[5];					//version of server
+		char			Version[BV2_VERSION_BUF_SIZE];					//version of server
 		char			Priority;					//master server usage only, leave at 0
 		unsigned short		DBVersion;
 		unsigned short		Padding;
 	};
 
-	
-
-
+    
 
 	//After a BaboStats enabled match
 	//use this struct to update the database with each player

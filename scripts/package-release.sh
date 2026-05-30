@@ -86,6 +86,32 @@ CLI_BIN="$BUILD/$(exe_name BaboViolent)"
 mkdir -p "$DIST"
 bash "$ROOT/scripts/ensure-master-databases.sh"
 
+# If a release tag is available in the environment (GitHub Actions) or via git,
+# update src/Version.h BV2_RELEASE_STRING so packaged binaries contain the
+# correct release string. This does not commit — packaging uses the modified file.
+get_release_tag() {
+	# explicit env override
+	if [[ -n "${BV2_VERSION:-}" ]]; then
+		echo "$BV2_VERSION"
+		return
+	fi
+	# GitHub Actions sets GITHUB_REF=refs/tags/<tag>
+	if [[ -n "${GITHUB_REF:-}" && "${GITHUB_REF#refs/tags/}" != "$GITHUB_REF" ]]; then
+		echo "${GITHUB_REF#refs/tags/}"
+		return
+	fi
+	# try git exact tag
+	git describe --tags --exact-match 2>/dev/null || true
+}
+
+RELEASE_TAG=$(get_release_tag || true)
+if [[ -n "$RELEASE_TAG" ]]; then
+	# normalize v prefix
+	NORM=${RELEASE_TAG#v}
+	echo "Updating src/Version.h to release $NORM"
+	perl -0777 -pe "s/#define BV2_RELEASE_STRING \".*?\"/#define BV2_RELEASE_STRING \"${NORM}\"/s" -i "$ROOT/src/Version.h"
+fi
+
 if ! bin_exists "$MASTER_BIN" || ! bin_exists "$DED_BIN" || ! bin_exists "$CLI_BIN"; then
 	echo "Binaries missing; running scripts/ci-build.sh..."
 	export BV2_PLATFORM BUILD

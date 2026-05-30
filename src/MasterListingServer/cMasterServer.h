@@ -9,6 +9,7 @@
 #endif
 
 #include "cMSstruct.h"
+#include "../Version.h"
 #include "baboNet.h"
 #include "MasterClient.h"
 #include "cBV2game.h"
@@ -61,7 +62,7 @@ private:
 public:
 
 
-	char			Version[5];		//garde la version de BaboViolent 2 ici
+	char			Version[BV2_VERSION_BUF_SIZE];		//garde la version de BaboViolent 2 ici
 	
 	int			NbGames;		//number of games currently being played
 	cBV2game		*Games;			//list of current games in lobby

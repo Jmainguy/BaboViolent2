@@ -40,6 +40,8 @@
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl3.h"
 
+#include "../Version.h"
+
 #ifdef WIN32
 	#if defined(_DEBUG) && defined(USE_VLD) && !defined(DEDICATED_SERVER)
 		#include <vld.h>
@@ -518,7 +520,7 @@ int main(int argc, const char* argv[])
 		return 0;
 	}
 	bbNetVersion = bb_getVersion();
-	if (CString("%s", bbNetVersion) != "4.0")
+	if (CString("%s", bbNetVersion) != BBNET_VERSION_STRING)
 	{
 		// Error
 		bb_peerShutdown();
@@ -803,7 +805,7 @@ static int RunGraphicalClient(const char* cmdLine)
 		return 0;
 	}
 	bbNetVersion = bb_getVersion();
-	if (CString("%s", bbNetVersion) != "4.0")
+	if (CString("%s", bbNetVersion) != BBNET_VERSION_STRING)
 	{
 		// Error
 		bb_peerShutdown();

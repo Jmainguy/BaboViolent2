@@ -40,6 +40,7 @@
 #include "AccountManager.h"
 
 extern bool surveyReceived;
+#include "../../Version.h"
 
 
 struct SMasterMessage
@@ -142,7 +143,7 @@ private:
 	std::vector<SPeer>	m_peers;
 
 	// holds the current game version we have
-	char m_CurrentVersion[5];
+	char m_CurrentVersion[BV2_VERSION_BUF_SIZE];
 
 	unsigned long uniqueClientID;
 	bool m_isConnected;

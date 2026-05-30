@@ -39,6 +39,32 @@ jobs:
             g++-mingw-w64-x86-64 mingw-w64-tools \
             sqlite3 zip
 
+      - name: Verify toolchains
+        run: |
+          set -euo pipefail
+          echo "Matrix platform: ${{ matrix.platform }}"
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            echo "Local compilers:"
+            gcc --version || true
+            g++ --version || true
+            echo "Cross compilers:"
+            command -v x86_64-w64-mingw32-g++ || echo "Mingw cross-compiler missing"
+            x86_64-w64-mingw32-g++ --version || true
+          elif [[ "${{ matrix.platform }}" == "windows" ]]; then
+            echo "Cross compilers:"
+            command -v x86_64-w64-mingw32-g++ || echo "Mingw cross-compiler missing"
+            x86_64-w64-mingw32-g++ --version || true
+          elif [[ "${{ matrix.platform }}" == "macos" ]]; then
+            echo "OSXCROSS_TARGET='$OSXCROSS_TARGET'"
+            if [[ -n "${OSXCROSS_TARGET:-}" ]]; then
+              ls -la "$OSXCROSS_TARGET/bin" || true
+              command -v o64-clang || command -v x86_64-apple-darwin-clang++ || echo "osxcross clang missing"
+            else
+              echo "OSXCROSS_TARGET not set; setup-osxcross may have failed"
+              exit 1
+            fi
+          fi
+
       - name: Build (${{ matrix.platform }})
         env:
           BV2_PLATFORM: ${{ matrix.platform }}

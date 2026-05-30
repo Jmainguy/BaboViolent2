@@ -942,7 +942,7 @@ void CMaster::GetMasterInfos()
 	strncpy(m_IP, "babo.soh.re", sizeof(m_IP) - 1);
 	m_IP[sizeof(m_IP) - 1] = '\0';
 	m_Port = 10207;
-	strncpy(m_CurrentVersion, "4.0", sizeof(m_CurrentVersion) - 1);
+	strncpy(m_CurrentVersion, BV2_RELEASE_STRING, sizeof(m_CurrentVersion) - 1);
 	m_CurrentVersion[sizeof(m_CurrentVersion) - 1] = '\0';
 
 	sqlite3 *db = 0;

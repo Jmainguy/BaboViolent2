@@ -45,6 +45,7 @@
 #endif
 
 #include "baboNet.h"		//les fonctions visible au user
+#include "../../Version.h"
 #include "cServer.h"
 #include "cClient.h"		//nos objets clients
 #include "cPacket.h"		//nos packet
@@ -74,7 +75,9 @@
 
 	unsigned char		NetBitField=0;		// pour les settings Enable/Disable
 
-	char			Version[5];		// stock la current version dla bbnet
+	char			Version[BV2_VERSION_BUF_SIZE];		// stock la current version dla bbnet
+
+	// Other code continues here...
 
 // debugging
 #ifdef USING_LOG
@@ -116,7 +119,8 @@ int bb_init()
 #endif
 
 	// Version courrante de la bbnet
-		sprintf(Version,"4.0");
+		strncpy(Version, BBNET_VERSION_STRING, sizeof(Version) - 1);
+		Version[sizeof(Version) - 1] = '\0';
 
 	//if we are running on windows, we have some initialisation to make
 	#ifdef WIN32
