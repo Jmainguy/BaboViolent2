@@ -275,10 +275,51 @@ Examples:
 
 The working directory for the game is ./Content (maps, cfg, sounds, etc.).
 
-This package omits bv2.db so the client uses the built-in default master (see
-CMaster::GetMasterInfos). To use a local master, add Content/bv2.db with
-MasterServers pointing at your host; Port column = TCP listen + 1000 (11207 for 10207).
+This package includes a default Content/bv2.db with:
+  - Master host babo.soh.re
+  - Port column 11207 (maps to TCP 10207 in-game)
+  - Launcher profile default name "Unamed Babo"
+
+To use a local master, edit Content/bv2.db MasterServers to your host; Port
+column = TCP listen + 1000 (11207 for 10207).
 EOF
+}
+
+write_default_game_bv2_db() {
+	local content_dir="$1"
+	local db="$content_dir/bv2.db"
+	command -v sqlite3 >/dev/null || die "sqlite3 is required to generate default Content/bv2.db"
+	rm -f "$db"
+	sqlite3 "$db" <<'SQL'
+CREATE TABLE MasterServers (
+  Score INTEGER,
+  Id INTEGER,
+  IP TEXT,
+  Location TEXT,
+  Port INTEGER
+);
+INSERT INTO MasterServers VALUES (0, 1, 'babo.soh.re', 'default', 11207);
+
+CREATE TABLE LauncherSettings (
+  Name TEXT,
+  Value TEXT
+);
+INSERT INTO LauncherSettings VALUES ('Version', '4.0');
+INSERT INTO LauncherSettings VALUES ('DBVersion', '0');
+INSERT INTO LauncherSettings VALUES ('AccountURL', 'https://babo.soh.re/');
+INSERT INTO LauncherSettings VALUES ('DidSurvey', '0');
+INSERT INTO LauncherSettings VALUES ('ProfileName', 'Unamed Babo');
+SQL
+}
+
+set_default_player_name_cfg() {
+	local content_dir="$1"
+	local cfg="$content_dir/main/bv2.cfg"
+	[[ -f "$cfg" ]] || return 0
+	# Existing line may include control chars from prior profiles; drop it and append a clean value.
+	awk '!/^cl_playerName /' "$cfg" >"$cfg.tmp"
+	echo 'cl_playerName "Unamed Babo"' >>"$cfg.tmp"
+	mv "$cfg.tmp" "$cfg"
 }
 
 write_run_master_unix() {
@@ -396,6 +437,8 @@ stage_game_content() {
 	chmod +x "$d/bin/$exe" 2>/dev/null || true
 	collect_libs "$d/lib" "$d/bin/$exe"
 	cp -a "$ROOT/Content" "$d/Content"
+	write_default_game_bv2_db "$d/Content"
+	set_default_player_name_cfg "$d/Content"
 	if [[ "$BV2_PLATFORM" == windows ]]; then
 		write_run_game_windows "$exe" "$d"
 	else
