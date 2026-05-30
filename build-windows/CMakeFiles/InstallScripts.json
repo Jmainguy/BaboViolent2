@@ -1,8 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/jmainguy/Github/BaboViolent2/build-windows/cmake_install.cmake",
-		"/home/jmainguy/Github/BaboViolent2/build-windows/thirdparty/SDL/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

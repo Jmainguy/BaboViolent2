@@ -14,6 +14,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BV2_PLATFORM="${BV2_PLATFORM:?set BV2_PLATFORM=linux|windows|macos}"
 BUILD="${BUILD:-$ROOT/build-${BV2_PLATFORM}}"
 
+# Always configure in a clean build directory. This avoids CMake cache
+# source-path mismatches when build artifacts were created on another machine.
+rm -rf "$BUILD"
+mkdir -p "$BUILD"
+
 TOOLCHAIN=""
 CMAKE_EXTRA=()
 

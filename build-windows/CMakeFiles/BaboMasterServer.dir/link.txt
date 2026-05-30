@@ -1,3 +1,0 @@
-/usr/bin/cmake -E rm -f CMakeFiles/BaboMasterServer.dir/objects.a
-/usr/bin/x86_64-w64-mingw32-ar qc CMakeFiles/BaboMasterServer.dir/objects.a @CMakeFiles/BaboMasterServer.dir/objects1.rsp
-/usr/bin/x86_64-w64-mingw32-g++ -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/BaboMasterServer.dir/objects.a -Wl,--no-whole-archive -o BaboMasterServer.exe -Wl,--out-implib,libBaboMasterServer.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/BaboMasterServer.dir/linkLibs.rsp
