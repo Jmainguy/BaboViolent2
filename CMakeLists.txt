@@ -214,6 +214,10 @@ if(WIN32)
     list(APPEND libs ${BV2_WIN32_LIBS})
 endif()
 
+if(APPLE)
+    add_definitions(-D__MACOSX__)
+endif()
+
 # Client (graphical)
 if(WIN32)
     add_executable(BaboViolent WIN32 ${BV2_COMMON_SOURCES})

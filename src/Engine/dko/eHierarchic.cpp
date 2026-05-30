@@ -29,7 +29,7 @@
 #else
 #include "LinuxHeader.h"
 #ifdef __MACOSX__
-#include <SDL_Opengl.h>
+#include <SDL_opengl.h>
 #else
 #include <GL/gl.h>
 #endif

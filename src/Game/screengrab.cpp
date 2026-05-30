@@ -24,7 +24,11 @@
 #include "Game.h"
 #include "Player.h"
 #include "Scene.h"
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
 #ifndef GL_BGRA_EXT
 #define GL_BGRA_EXT 0x80E1
 #endif
