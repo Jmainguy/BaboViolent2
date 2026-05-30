@@ -5,13 +5,25 @@
 
 #include <iostream>
 
+#ifndef WIN32
+#include <pthread.h>
+#endif
+
 #define CTHREAD_PRIORITY_VERY_LOW 0
 #define CTHREAD_PRIORITY_LOW 1
 #define CTHREAD_PRIORITY_NORMAL 2
 #define CTHREAD_PRIORITY_HIGH 3
 #define CTHREAD_PRIORITY_VERY_HIGH 4
 
-int createThread(unsigned long (*pFuncter)(void*), void * pParam, unsigned long & pThreadID, int pPriority);
+#ifdef WIN32
+typedef unsigned long CThreadEntryRet;
+typedef unsigned long CThreadNativeId;
+#else
+typedef void* CThreadEntryRet;
+typedef pthread_t CThreadNativeId;
+#endif
+
+int createThread(CThreadEntryRet (*pFuncter)(void*), void * pParam, CThreadNativeId & pThreadID, int pPriority);
 
 
 
@@ -31,9 +43,9 @@ protected:
 #endif
 
 	// To hold the thread ID
-	unsigned long mThreadId;
+	CThreadNativeId mThreadId;
 
-	static unsigned long entryPoint(void*);
+	static CThreadEntryRet entryPoint(void*);
 	void * arg() const {return mArg;}
 	void arg(void * pArg){mArg = pArg;}
 	void run(void * arg);

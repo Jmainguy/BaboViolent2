@@ -25,12 +25,6 @@
 #else
 	#include <sched.h>		//Linux
 	#include "LinuxHeader.h"
-		
-	typedef void* (*PTHREAD_START_ROUTINE)(
-
-   		 void* lpThreadParameter
-
-    	);
 
 #endif
 
@@ -40,7 +34,7 @@
 // Fonction pour cr�r un thread
 //
 
-int createThread(unsigned long (*pFuncter)(void*), void * pParam, unsigned long & pThreadID, int pPriority)
+int createThread(CThreadEntryRet (*pFuncter)(void*), void * pParam, CThreadNativeId & pThreadID, int pPriority)
 {
 
 	#ifdef WIN32
@@ -84,17 +78,17 @@ int createThread(unsigned long (*pFuncter)(void*), void * pParam, unsigned long 
  		//schedparam.sched_priority = DEFAULT_PRIO;
 		//pthread_attr_setschedparam(threadAttr, &schedparam);
 		
-		int rc = pthread_create( &threadID,0,(PTHREAD_START_ROUTINE)pFuncter, pParam);
+		int rc = pthread_create(&threadID, 0, pFuncter, pParam);
 		if (rc)
 		{
         		 printf("ERROR; return code from pthread_create() is %d\n", rc);
          		//exit(-1);
+			 return 0;
       		}
 		pThreadID = threadID;
 		//pthread_detach(threadID);
 		
-		
-		return threadID;
+		return 1;
 	#endif
 
 	
@@ -158,11 +152,15 @@ void CThread::run(void * pArg)
 //
 // static
 //
-unsigned long CThread::entryPoint(void * pThis)
+CThreadEntryRet CThread::entryPoint(void * pThis)
 {
 	CThread * pt = (CThread*)pThis;
 	pt->run(pt->arg());
+#ifdef WIN32
 	return 0;
+#else
+	return nullptr;
+#endif
 }
 
 
