@@ -396,7 +396,6 @@ stage_game_content() {
 	chmod +x "$d/bin/$exe" 2>/dev/null || true
 	collect_libs "$d/lib" "$d/bin/$exe"
 	cp -a "$ROOT/Content" "$d/Content"
-	rm -f "$d/Content/bv2.db"
 	if [[ "$BV2_PLATFORM" == windows ]]; then
 		write_run_game_windows "$exe" "$d"
 	else
